@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, memo, useMemo, type ReactNode } from 'react';
+import { useRef, useEffect, useState, memo, useMemo, type ReactNode, type CSSProperties } from 'react';
 import { useStore } from '../store';
 import { useDebounce } from '../hooks/useDebounce';
 import { getCardDimensions } from '../utils/cardUtils';
@@ -299,8 +299,11 @@ const Card = memo(({
              boxDecorationBreak: dataBg ? 'clone' : style?.boxDecorationBreak,
              WebkitBoxDecorationBreak: dataBg ? 'clone' : style?.WebkitBoxDecorationBreak,
              position: underlineMode ? 'relative' : style?.position,
+             '--md2-underline-color': cardStyle.underlineColor || cardStyle.accentColor,
+             '--md2-underline-thickness': `${cardStyle.underlineThickness || 4}px`,
+             '--md2-underline-offset': `${cardStyle.underlineOffset || 2}px`,
              ...style
-           }}
+           } as CSSProperties}
            className={`${isAlignment ? 'block my-0' : ''} leading-relaxed opacity-90 ${underlineMode ? 'md2-handdrawn-underline' : ''}`}
            {...props}
          >
@@ -311,9 +314,9 @@ const Card = memo(({
      mark: ({ node: _node, style, children, ...props }: any) => (
        <mark
          style={{
-           color: cardStyle.textColor,
-           background: `linear-gradient(120deg, ${(cardStyle.accentColor || '#3b82f6')}33 0%, ${(cardStyle.accentColor || '#3b82f6')}66 100%)`,
-           boxShadow: `inset 0 -0.65em 0 ${(cardStyle.accentColor || '#3b82f6')}22`,
+           color: cardStyle.highlightTextColor || cardStyle.textColor,
+           background: `linear-gradient(${cardStyle.highlightTilt || -2}deg, ${cardStyle.highlightColor || '#fde68a'} 0%, ${cardStyle.highlightColor || '#fde68a'} ${cardStyle.highlightSpread || 65}%, transparent ${Math.min((cardStyle.highlightSpread || 65) + 18, 100)}%)`,
+           boxShadow: `inset 0 -0.72em 0 color-mix(in srgb, ${cardStyle.highlightColor || '#fde68a'} 32%, transparent)`,
            ...style
          }}
          className="rounded-[0.45em] px-[0.32em] py-[0.08em] md2-highlight"
@@ -361,42 +364,50 @@ const Card = memo(({
           question: <Info size={16} />,
         };
 
-        const paletteMap: Record<string, { border: string; background: string; soft: string }> = {
-          note: { border: cardStyle.accentColor, background: `${cardStyle.accentColor}16`, soft: `${cardStyle.accentColor}26` },
-          info: { border: '#0ea5e9', background: '#0ea5e916', soft: '#0ea5e926' },
-          tip: { border: '#10b981', background: '#10b98116', soft: '#10b98126' },
-          success: { border: '#22c55e', background: '#22c55e16', soft: '#22c55e26' },
-          warning: { border: '#f59e0b', background: '#f59e0b16', soft: '#f59e0b26' },
-          danger: { border: '#ef4444', background: '#ef444416', soft: '#ef444426' },
-          important: { border: '#8b5cf6', background: '#8b5cf616', soft: '#8b5cf626' },
-          question: { border: '#6366f1', background: '#6366f116', soft: '#6366f126' },
+        const paletteMap: Record<string, { icon: string }> = {
+          note: { icon: cardStyle.calloutBorderColor || cardStyle.accentColor },
+          info: { icon: cardStyle.calloutBorderColor || '#0ea5e9' },
+          tip: { icon: cardStyle.calloutBorderColor || '#10b981' },
+          success: { icon: cardStyle.calloutBorderColor || '#22c55e' },
+          warning: { icon: cardStyle.calloutBorderColor || '#f59e0b' },
+          danger: { icon: cardStyle.calloutBorderColor || '#ef4444' },
+          important: { icon: cardStyle.calloutBorderColor || '#8b5cf6' },
+          question: { icon: cardStyle.calloutBorderColor || '#6366f1' },
         };
 
         const palette = paletteMap[calloutMeta.type] || paletteMap.note;
         const cleanedChildren = childArray.slice(1);
+        const calloutPadding = cardStyle.calloutPadding || 18;
+        const calloutRadius = cardStyle.calloutRadius || 20;
+        const calloutTitle = calloutMeta.title || calloutMeta.type.toUpperCase();
+        const calloutBody = cleanedChildren.length > 0 ? cleanedChildren : (
+          <p className="mb-0 opacity-70">&nbsp;</p>
+        );
 
         return (
           <div
-            className="my-5 overflow-hidden rounded-[1.25rem] border shadow-[0_18px_40px_-24px_rgba(15,23,42,0.45)]"
+            className="my-5 overflow-hidden border shadow-[0_18px_40px_-24px_rgba(15,23,42,0.45)]"
             style={{
-              borderColor: palette.border + '55',
-              background: `linear-gradient(180deg, ${palette.background} 0%, rgba(255,255,255,0.02) 100%)`,
+              borderRadius: `${calloutRadius}px`,
+              borderColor: cardStyle.calloutBorderColor || cardStyle.accentColor,
+              background: `linear-gradient(180deg, ${cardStyle.calloutBackgroundColor || '#eff6ff'} 0%, color-mix(in srgb, ${cardStyle.calloutBackgroundColor || '#eff6ff'} 72%, white) 100%)`,
             }}
           >
             <div
-              className="flex items-center gap-3 px-4 py-3 font-semibold"
+              className="flex items-center gap-3 font-semibold"
               style={{
-                color: palette.border,
-                background: `linear-gradient(135deg, ${palette.soft} 0%, transparent 100%)`,
+                padding: `${Math.max(calloutPadding - 3, 12)}px ${calloutPadding}px ${Math.max(calloutPadding - 8, 10)}px`,
+                color: cardStyle.calloutTitleColor || cardStyle.calloutBorderColor || cardStyle.accentColor,
+                background: `linear-gradient(135deg, color-mix(in srgb, ${cardStyle.calloutBorderColor || cardStyle.accentColor} 12%, transparent) 0%, transparent 100%)`,
               }}
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border" style={{ borderColor: palette.border + '40', background: palette.background }}>
+              <span className="flex h-9 w-9 items-center justify-center rounded-2xl border" style={{ borderColor: cardStyle.calloutBorderColor || cardStyle.accentColor, background: 'rgba(255,255,255,0.65)', color: palette.icon }}>
                 {iconMap[calloutMeta.type] || iconMap.note}
               </span>
-              <span>{calloutMeta.title || calloutMeta.type.toUpperCase()}</span>
+              <span>{calloutTitle}</span>
             </div>
-            <div className="px-4 pb-4 pt-3 text-[0.98em] leading-relaxed [&>*:last-child]:mb-0 [&>*:first-child]:mt-0" style={{ color: cardStyle.textColor }}>
-              {cleanedChildren.length > 0 ? cleanedChildren : null}
+            <div className="text-[0.98em] leading-relaxed [&>*:last-child]:mb-0 [&>*:first-child]:mt-0" style={{ color: cardStyle.calloutTextColor || cardStyle.textColor, padding: `0 ${calloutPadding}px ${calloutPadding}px` }}>
+              {calloutBody}
             </div>
           </div>
         );

@@ -11,7 +11,7 @@ import { type LocalFont } from '../utils/fonts';
 const RatioIcon = ({ ratio, orientation }: { ratio: string, orientation: 'portrait' | 'landscape' }) => {
   if (ratio === 'custom') return <Layout size={14} className="opacity-70" />;
   let [w, h] = ratio.split(':').map(Number);
-  
+
   // Swap if portrait to match visual expectation
   if (orientation === 'portrait') {
     [w, h] = [h, w];
@@ -20,7 +20,7 @@ const RatioIcon = ({ ratio, orientation }: { ratio: string, orientation: 'portra
   // Fit within 14x14 box
   const maxDim = 14;
   let width, height;
-  
+
   if (w >= h) {
       width = maxDim;
       height = width * (h / w);
@@ -30,7 +30,7 @@ const RatioIcon = ({ ratio, orientation }: { ratio: string, orientation: 'portra
   }
 
   return (
-    <div 
+    <div
       className="border border-current opacity-70 mb-1"
       style={{ width: `${width}px`, height: `${height}px` }}
     />
@@ -66,9 +66,9 @@ export const Sidebar = () => {
     resetCardStyle();
     setShowResetToast(true);
     setResetCountdown(10);
-    
+
     if (countdownTimer.current) clearInterval(countdownTimer.current);
-    
+
     countdownTimer.current = setInterval(() => {
       setResetCountdown(prev => {
         if (prev <= 0.1) {
@@ -149,7 +149,7 @@ export const Sidebar = () => {
                 <span>{t.styleSettings}</span>
               </div>
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={handleReset}
                   className="px-3 py-1.5 bg-black text-white dark:bg-white dark:text-black rounded-full flex items-center gap-1.5 transition-transform active:scale-95 shadow-lg hover:opacity-90"
                   title={t.resetStyle}
@@ -157,7 +157,7 @@ export const Sidebar = () => {
                   <span className="text-xs font-bold tracking-wider">{t.resetStyle}</span>
                   <RotateCcw size={12} strokeWidth={3} />
                 </button>
-                <button 
+                <button
                   onClick={() => setIsSidebarOpen(false)}
                   className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors"
                 >
@@ -180,7 +180,7 @@ export const Sidebar = () => {
                       onClick={() => {
                         const mode = m as 'portrait' | 'landscape' | 'long' | 'flexible';
                         const updates: Partial<CardStyle> = { layoutMode: mode };
-                        
+
                         if (mode === 'portrait') {
                           updates.orientation = 'portrait';
                           updates.autoHeight = false;
@@ -192,7 +192,7 @@ export const Sidebar = () => {
                         } else if (mode === 'flexible') {
                           updates.autoHeight = true; // Still uses auto height logic for cards
                         }
-                        
+
                         updateCardStyle(updates);
                       }}
                       className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition-all ${
@@ -202,13 +202,13 @@ export const Sidebar = () => {
                       }`}
                       title={m === 'long' ? t.autoHeightHint : m === 'flexible' ? t.flexibleHint : undefined}
                     >
-                      {m === 'portrait' ? <Smartphone size={14} /> : 
-                       m === 'landscape' ? <MonitorIcon size={14} /> : 
+                      {m === 'portrait' ? <Smartphone size={14} /> :
+                       m === 'landscape' ? <MonitorIcon size={14} /> :
                        m === 'long' ? <Layout size={14} /> :
                        <StretchHorizontal size={14} />}
                       <span className="capitalize">
-                        {m === 'long' ? t.autoHeight : 
-                         m === 'flexible' ? t.flexible : 
+                        {m === 'long' ? t.autoHeight :
+                         m === 'flexible' ? t.flexible :
                          (t as any)[m]}
                       </span>
                     </button>
@@ -231,7 +231,7 @@ export const Sidebar = () => {
                            onClick={() => updateCardStyle({ aspectRatio: ratio.value })}
                            className={`p-2 rounded-lg border text-xs flex flex-col items-center justify-center gap-1 transition-all h-14 ${
                              cardStyle.aspectRatio === ratio.value
-                               ? 'bg-black/10 dark:bg-white/20 border-black/20 dark:border-white/40 shadow-sm text-slate-900 dark:text-white' 
+                               ? 'bg-black/10 dark:bg-white/20 border-black/20 dark:border-white/40 shadow-sm text-slate-900 dark:text-white'
                                : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 text-slate-600 dark:text-white/60'
                            }`}
                          >
@@ -245,19 +245,19 @@ export const Sidebar = () => {
                       <div className="grid grid-cols-2 gap-3 mt-3">
                         <div>
                           <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.width}</label>
-                          <DraggableNumberInput 
-                              value={cardStyle.width} 
-                              min={300} max={1200} 
-                              onChange={(val) => updateCardStyle({ width: val })} 
+                          <DraggableNumberInput
+                              value={cardStyle.width}
+                              min={300} max={1200}
+                              onChange={(val) => updateCardStyle({ width: val })}
                               icon={<ParameterIcon type="width" />}
                           />
                         </div>
                         <div>
                           <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.height}</label>
-                          <DraggableNumberInput 
-                              value={cardStyle.height} 
-                              min={300} max={1200} 
-                              onChange={(val) => updateCardStyle({ height: val })} 
+                          <DraggableNumberInput
+                              value={cardStyle.height}
+                              min={300} max={1200}
+                              onChange={(val) => updateCardStyle({ height: val })}
                               icon={<ParameterIcon type="width" />}
                           />
                         </div>
@@ -267,10 +267,10 @@ export const Sidebar = () => {
                 ) : (
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.width}</label>
-                    <DraggableNumberInput 
-                        value={cardStyle.width} 
-                        min={300} max={1200} 
-                        onChange={(val) => updateCardStyle({ width: val })} 
+                    <DraggableNumberInput
+                        value={cardStyle.width}
+                        min={300} max={1200}
+                        onChange={(val) => updateCardStyle({ width: val })}
                         icon={<ParameterIcon type="width" />}
                     />
                   </div>
@@ -280,10 +280,10 @@ export const Sidebar = () => {
                   {/* Border Radius */}
                   <div>
                     <label className="text-xs font-medium opacity-70 mb-2 block">{t.cornerRadius} (px)</label>
-                    <DraggableNumberInput 
-                      value={cardStyle.borderRadius} 
-                      min={0} max={48} 
-                      onChange={(val) => updateCardStyle({ borderRadius: val })} 
+                    <DraggableNumberInput
+                      value={cardStyle.borderRadius}
+                      min={0} max={48}
+                      onChange={(val) => updateCardStyle({ borderRadius: val })}
                       icon={<ParameterIcon type="radius" />}
                     />
                   </div>
@@ -292,7 +292,7 @@ export const Sidebar = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-medium opacity-70">{t.contentPadding}</label>
-                      <button 
+                      <button
                         onClick={() => updateCardStyle({ cardPaddingSync: !cardStyle.cardPaddingSync })}
                         className={`p-1.5 rounded-md transition-all hover:bg-black/5 dark:hover:bg-white/5 ${cardStyle.cardPaddingSync ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}
                         title={t.paddingSync}
@@ -302,36 +302,36 @@ export const Sidebar = () => {
                     </div>
 
                     {cardStyle.cardPaddingSync ? (
-                      <DraggableNumberInput 
-                        value={cardStyle.cardPadding?.top ?? cardStyle.contentPadding} 
-                        min={0} max={200} 
-                        onChange={(val) => updateCardStyle({ 
-                          cardPadding: { top: val, right: val, bottom: val, left: val } 
-                        })} 
+                      <DraggableNumberInput
+                        value={cardStyle.cardPadding?.top ?? cardStyle.contentPadding}
+                        min={0} max={200}
+                        onChange={(val) => updateCardStyle({
+                          cardPadding: { top: val, right: val, bottom: val, left: val }
+                        })}
                         icon={<MarginIcon side="all" />}
                         label={t.all}
                       />
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
-                         <DraggableNumberInput 
+                         <DraggableNumberInput
                            value={cardStyle.cardPadding?.top ?? cardStyle.contentPadding}
                            onChange={(val) => updateCardStyle({ cardPadding: { ...(cardStyle.cardPadding || { top: cardStyle.contentPadding, right: cardStyle.contentPadding, bottom: cardStyle.contentPadding, left: cardStyle.contentPadding }), top: val } })}
                            icon={<MarginIcon side="top" />}
                            label={t.top}
                          />
-                         <DraggableNumberInput 
+                         <DraggableNumberInput
                            value={cardStyle.cardPadding?.right ?? cardStyle.contentPadding}
                            onChange={(val) => updateCardStyle({ cardPadding: { ...(cardStyle.cardPadding || { top: cardStyle.contentPadding, right: cardStyle.contentPadding, bottom: cardStyle.contentPadding, left: cardStyle.contentPadding }), right: val } })}
                            icon={<MarginIcon side="right" />}
                            label={t.right}
                          />
-                         <DraggableNumberInput 
+                         <DraggableNumberInput
                            value={cardStyle.cardPadding?.bottom ?? cardStyle.contentPadding}
                            onChange={(val) => updateCardStyle({ cardPadding: { ...(cardStyle.cardPadding || { top: cardStyle.contentPadding, right: cardStyle.contentPadding, bottom: cardStyle.contentPadding, left: cardStyle.contentPadding }), bottom: val } })}
                            icon={<MarginIcon side="bottom" />}
                            label={t.bottom}
                          />
-                         <DraggableNumberInput 
+                         <DraggableNumberInput
                            value={cardStyle.cardPadding?.left ?? cardStyle.contentPadding}
                            onChange={(val) => updateCardStyle({ cardPadding: { ...(cardStyle.cardPadding || { top: cardStyle.contentPadding, right: cardStyle.contentPadding, bottom: cardStyle.contentPadding, left: cardStyle.contentPadding }), left: val } })}
                            icon={<MarginIcon side="left" />}
@@ -340,7 +340,7 @@ export const Sidebar = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Border */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -349,16 +349,16 @@ export const Sidebar = () => {
                     </div>
                     <div className="flex items-start gap-2">
                       <div className="flex-1">
-                        <ColorPicker 
-                          color={cardStyle.borderColor} 
-                          onChange={(val) => updateCardStyle({ borderColor: val })} 
+                        <ColorPicker
+                          color={cardStyle.borderColor}
+                          onChange={(val) => updateCardStyle({ borderColor: val })}
                         />
                       </div>
                       <div className="flex-1">
-                         <DraggableNumberInput 
-                           value={cardStyle.borderWidth} 
-                           min={0} max={40} 
-                           onChange={(val) => updateCardStyle({ borderWidth: val })} 
+                         <DraggableNumberInput
+                           value={cardStyle.borderWidth}
+                           min={0} max={40}
+                           onChange={(val) => updateCardStyle({ borderWidth: val })}
                            icon={<ParameterIcon type="border" />}
                          />
                        </div>
@@ -369,14 +369,14 @@ export const Sidebar = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-medium opacity-70">{t.shadow}</label>
-                      <button 
+                      <button
                         onClick={() => updateCardStyle({ shadowEnabled: !cardStyle.shadowEnabled })}
                         className={`w-10 h-5 rounded-full transition-colors relative ${cardStyle.shadowEnabled ? 'bg-slate-900 dark:bg-white/90' : 'bg-black/10 dark:bg-white/10'}`}
                       >
                         <div className={`w-3 h-3 rounded-full bg-white dark:bg-black/80 absolute top-1 transition-all ${cardStyle.shadowEnabled ? 'left-6' : 'left-1'}`} />
                       </button>
                     </div>
-                    
+
                     {cardStyle.shadowEnabled && (
                       <div className="space-y-3 p-3 bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5">
                         <div className="grid grid-cols-2 gap-3">
@@ -401,12 +401,12 @@ export const Sidebar = () => {
                           </div>
                         </div>
 
-                        <ColorPicker 
+                        <ColorPicker
                           label={t.colors}
                           color={cardStyle.shadowConfig?.color || '#000000'}
                           onChange={(val) => updateCardStyle({ shadowConfig: { ...cardStyle.shadowConfig, color: val } })}
                         />
-                        
+
                         <div>
                           <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.opacity}</label>
                           <DraggableNumberInput value={cardStyle.shadowConfig?.opacity ?? 0} min={0} max={1} step={0.01} onChange={(val) => updateCardStyle({ shadowConfig: { ...cardStyle.shadowConfig, opacity: val } })} icon={<ParameterIcon type="opacity" />} />
@@ -418,11 +418,11 @@ export const Sidebar = () => {
               </SidebarSection>
 
               {/* Background Fill */}
-              <SidebarSection 
-                title={t.backgroundFill} 
+              <SidebarSection
+                title={t.backgroundFill}
                 icon={<ImageIcon size={16} />}
                 rightElement={
-                  <button 
+                  <button
                     onClick={() => updateCardStyle({ enableBackground: !cardStyle.enableBackground })}
                     className={`w-10 h-5 rounded-full transition-colors relative ${cardStyle.enableBackground ? 'bg-slate-900 dark:bg-white/90' : 'bg-black/10 dark:bg-white/10'}`}
                   >
@@ -434,7 +434,7 @@ export const Sidebar = () => {
                   <div className="space-y-4">
                     <div className="flex p-1 bg-black/5 dark:bg-white/5 rounded mb-2">
                       {['solid', 'gradient', 'image'].map((type) => (
-                        <button 
+                        <button
                           key={type}
                           onClick={() => updateCardStyle({ backgroundType: type as any })}
                           className={`flex-1 py-1 text-[10px] rounded transition-all capitalize ${cardStyle.backgroundType === type ? 'bg-black/10 dark:bg-white/20 text-slate-900 dark:text-white' : 'text-black/50 dark:text-white/50'}`}
@@ -445,7 +445,7 @@ export const Sidebar = () => {
                     </div>
 
                     {cardStyle.backgroundType === 'solid' && (
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.background}
                         color={cardStyle.backgroundValue.startsWith('#') ? cardStyle.backgroundValue : '#ffffff'}
                         onChange={(val) => updateCardStyle({ backgroundValue: val })}
@@ -454,41 +454,41 @@ export const Sidebar = () => {
 
                     {cardStyle.backgroundType === 'gradient' && (
                       <div className="space-y-3">
-                        <GradientPresets 
+                        <GradientPresets
                           onSelect={(start, end) => {
                             const angle = cardStyle.gradientAngle || 135;
-                            updateCardStyle({ 
+                            updateCardStyle({
                               gradientStart: start,
                               gradientEnd: end,
-                              backgroundValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)` 
+                              backgroundValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
                             });
                           }}
                         />
                         <AdvancedToggle label={t.gradientSettings}>
-                          <ColorPicker 
+                          <ColorPicker
                             label={t.startColor}
                             color={cardStyle.gradientStart || '#667eea'}
                             onChange={(val) => {
                               const start = val;
                               const end = cardStyle.gradientEnd || '#764ba2';
                               const angle = cardStyle.gradientAngle || 135;
-                              updateCardStyle({ 
+                              updateCardStyle({
                                 gradientStart: start,
-                                backgroundValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)` 
+                                backgroundValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
                               });
                             }}
                           />
 
-                          <ColorPicker 
+                          <ColorPicker
                             label={t.endColor}
                             color={cardStyle.gradientEnd || '#764ba2'}
                             onChange={(val) => {
                               const start = cardStyle.gradientStart || '#667eea';
                               const end = val;
                               const angle = cardStyle.gradientAngle || 135;
-                              updateCardStyle({ 
+                              updateCardStyle({
                                 gradientEnd: end,
-                                backgroundValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)` 
+                                backgroundValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
                               });
                             }}
                           />
@@ -499,9 +499,9 @@ export const Sidebar = () => {
                               const angle = val;
                               const start = cardStyle.gradientStart || '#667eea';
                               const end = cardStyle.gradientEnd || '#764ba2';
-                              updateCardStyle({ 
+                              updateCardStyle({
                                 gradientAngle: angle,
-                                backgroundValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)` 
+                                backgroundValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
                               });
                             }} icon={<ParameterIcon type="angle" />} />
                           </div>
@@ -512,8 +512,8 @@ export const Sidebar = () => {
                     {cardStyle.backgroundType === 'image' && (
                        <div className="space-y-3">
                          <div className="relative">
-                           <input 
-                             type="file" 
+                           <input
+                             type="file"
                              accept="image/*"
                              onChange={(e) => handleImageUpload(e, 'background')}
                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
@@ -522,13 +522,13 @@ export const Sidebar = () => {
                              <Upload size={14} /> {t.uploadImage}
                            </button>
                          </div>
-                         
+
                          {cardStyle.backgroundImage && (
                            <AdvancedToggle label={t.imageSettings}>
                              <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/5 relative mb-3">
                                <img src={cardStyle.backgroundImage} className="w-full h-full object-cover" />
                              </div>
-                             
+
                              <div className="grid grid-cols-2 gap-3">
                                <div>
                                  <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">X Offset</label>
@@ -564,7 +564,7 @@ export const Sidebar = () => {
               <SidebarSection title={t.cardBackground} icon={<Palette size={16} />}>
                 <div className="flex p-1 bg-black/5 dark:bg-white/5 rounded mb-2">
                   {['solid', 'gradient', 'image'].map((type) => (
-                    <button 
+                    <button
                       key={type}
                       onClick={() => updateCardStyle({ cardBackgroundType: type as any })}
                       className={`flex-1 py-1 text-[10px] rounded transition-all capitalize ${cardStyle.cardBackgroundType === type ? 'bg-black/10 dark:bg-white/20 text-slate-900 dark:text-white' : 'text-black/50 dark:text-white/50'}`}
@@ -575,7 +575,7 @@ export const Sidebar = () => {
                 </div>
 
                 {cardStyle.cardBackgroundType === 'solid' && (
-                    <ColorPicker 
+                    <ColorPicker
                       label={t.solid}
                       color={cardStyle.backgroundColor}
                       onChange={(val) => updateCardStyle({ backgroundColor: val })}
@@ -584,40 +584,40 @@ export const Sidebar = () => {
 
                 {cardStyle.cardBackgroundType === 'gradient' && (
                   <div className="space-y-3">
-                    <GradientPresets 
+                    <GradientPresets
                       onSelect={(start, end) => {
                         const angle = cardStyle.cardGradientAngle || 135;
-                        updateCardStyle({ 
+                        updateCardStyle({
                           cardGradientStart: start,
                           cardGradientEnd: end,
-                          cardGradientValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)` 
+                          cardGradientValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
                         });
                       }}
                     />
                     <AdvancedToggle label={t.gradientSettings}>
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.startColor}
                         color={cardStyle.cardGradientStart || '#ffffff'}
                         onChange={(val) => {
                           const start = val;
                           const end = cardStyle.cardGradientEnd || '#f0f0f0';
                           const angle = cardStyle.cardGradientAngle || 135;
-                          updateCardStyle({ 
+                          updateCardStyle({
                             cardGradientStart: start,
-                            cardGradientValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)` 
+                            cardGradientValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
                           });
                         }}
                       />
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.endColor}
                         color={cardStyle.cardGradientEnd || '#f0f0f0'}
                         onChange={(val) => {
                           const start = cardStyle.cardGradientStart || '#ffffff';
                           const end = val;
                           const angle = cardStyle.cardGradientAngle || 135;
-                          updateCardStyle({ 
+                          updateCardStyle({
                             cardGradientEnd: end,
-                            cardGradientValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)` 
+                            cardGradientValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
                           });
                         }}
                       />
@@ -627,9 +627,9 @@ export const Sidebar = () => {
                           const angle = val;
                           const start = cardStyle.cardGradientStart || '#ffffff';
                           const end = cardStyle.cardGradientEnd || '#f0f0f0';
-                          updateCardStyle({ 
+                          updateCardStyle({
                             cardGradientAngle: angle,
-                            cardGradientValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)` 
+                            cardGradientValue: `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
                           });
                         }} icon={<ParameterIcon type="angle" />} />
                       </div>
@@ -640,8 +640,8 @@ export const Sidebar = () => {
                 {cardStyle.cardBackgroundType === 'image' && (
                     <div className="space-y-3">
                       <div className="relative">
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           onChange={(e) => handleImageUpload(e, 'cardBackground')}
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
@@ -650,13 +650,13 @@ export const Sidebar = () => {
                           <Upload size={14} /> {t.uploadImage}
                         </button>
                       </div>
-                      
+
                       {cardStyle.cardBackgroundImage && (
                         <AdvancedToggle label={t.imageSettings}>
                           <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/5 relative mb-3">
                             <img src={cardStyle.cardBackgroundImage} className="w-full h-full object-cover" />
                           </div>
-                          
+
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">X Offset</label>
@@ -681,7 +681,7 @@ export const Sidebar = () => {
                 )}
 
                 <div className="mt-4">
-                  <ColorPicker 
+                  <ColorPicker
                     label={t.text}
                     color={cardStyle.textColor}
                     onChange={(val) => handleColorChange('textColor', val)}
@@ -691,27 +691,126 @@ export const Sidebar = () => {
                 <AdvancedToggle label={t.elementColors}>
                   <ColorSectionWrapper>
                     <div className="grid grid-cols-2 gap-3">
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.underlineColor}
                         color={cardStyle.underlineColor || '#3b82f6'}
                         onChange={(val) => handleColorChange('underlineColor', val)}
                       />
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.strikethroughColor}
                         color={cardStyle.strikethroughColor || '#000000'}
                         onChange={(val) => handleColorChange('strikethroughColor', val)}
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.underlineThickness}</label>
+                        <DraggableNumberInput
+                          value={cardStyle.underlineThickness}
+                          min={1} max={16}
+                          onChange={(val) => updateCardStyle({ underlineThickness: val })}
+                          icon={<ParameterIcon type="width" />}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.underlineOffset}</label>
+                        <DraggableNumberInput
+                          value={cardStyle.underlineOffset}
+                          min={-4} max={12}
+                          onChange={(val) => updateCardStyle({ underlineOffset: val })}
+                          icon={<MarginIcon side="bottom" />}
+                        />
+                      </div>
+                    </div>
+                  </ColorSectionWrapper>
+
+                  <ColorSectionWrapper label={t.markdownBlocks}>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ColorPicker
+                        label={t.highlightColor}
+                        color={cardStyle.highlightColor}
+                        onChange={(val) => handleColorChange('highlightColor', val)}
+                      />
+                      <ColorPicker
+                        label={t.highlightTextColor}
+                        color={cardStyle.highlightTextColor}
+                        onChange={(val) => handleColorChange('highlightTextColor', val)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.highlightTilt}</label>
+                        <DraggableNumberInput
+                          value={cardStyle.highlightTilt}
+                          min={-20} max={20}
+                          onChange={(val) => updateCardStyle({ highlightTilt: val })}
+                          icon={<ParameterIcon type="width" />}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.highlightSpread}</label>
+                        <DraggableNumberInput
+                          value={cardStyle.highlightSpread}
+                          min={20} max={100}
+                          onChange={(val) => updateCardStyle({ highlightSpread: val })}
+                          icon={<ParameterIcon type="width" />}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <ColorPicker
+                        label={t.calloutBackground}
+                        color={cardStyle.calloutBackgroundColor}
+                        onChange={(val) => handleColorChange('calloutBackgroundColor', val)}
+                      />
+                      <ColorPicker
+                        label={t.calloutBorder}
+                        color={cardStyle.calloutBorderColor}
+                        onChange={(val) => handleColorChange('calloutBorderColor', val)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <ColorPicker
+                        label={t.calloutTitleColor}
+                        color={cardStyle.calloutTitleColor}
+                        onChange={(val) => handleColorChange('calloutTitleColor', val)}
+                      />
+                      <ColorPicker
+                        label={t.calloutTextColor}
+                        color={cardStyle.calloutTextColor}
+                        onChange={(val) => handleColorChange('calloutTextColor', val)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.calloutRadius}</label>
+                        <DraggableNumberInput
+                          value={cardStyle.calloutRadius}
+                          min={0} max={36}
+                          onChange={(val) => updateCardStyle({ calloutRadius: val })}
+                          icon={<ParameterIcon type="radius" />}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.calloutPadding}</label>
+                        <DraggableNumberInput
+                          value={cardStyle.calloutPadding}
+                          min={8} max={32}
+                          onChange={(val) => updateCardStyle({ calloutPadding: val })}
+                          icon={<MarginIcon side="all" />}
+                        />
+                      </div>
+                    </div>
                   </ColorSectionWrapper>
 
                   <ColorSectionWrapper>
                     <div className="grid grid-cols-2 gap-3">
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.blockquoteBackground}
                         color={cardStyle.blockquoteBackgroundColor}
                         onChange={(val) => handleColorChange('blockquoteBackgroundColor', val)}
                       />
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.blockquoteBorder}
                         color={cardStyle.blockquoteBorderColor}
                         onChange={(val) => handleColorChange('blockquoteBorderColor', val)}
@@ -720,7 +819,7 @@ export const Sidebar = () => {
                   </ColorSectionWrapper>
 
                   <ColorSectionWrapper>
-                    <ColorPicker 
+                    <ColorPicker
                       label={t.codeBackground}
                       color={cardStyle.codeBackgroundColor}
                       onChange={(val) => handleColorChange('codeBackgroundColor', val)}
@@ -729,12 +828,12 @@ export const Sidebar = () => {
 
                   <ColorSectionWrapper>
                     <div className="grid grid-cols-2 gap-3">
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.h1Color}
                         color={cardStyle.h1Color || '#000000'}
                         onChange={(val) => handleColorChange('h1Color', val)}
                       />
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.h1LineColor}
                         color={cardStyle.h1LineColor || '#3b82f6'}
                         onChange={(val) => handleColorChange('h1LineColor', val)}
@@ -744,12 +843,12 @@ export const Sidebar = () => {
 
                   <ColorSectionWrapper>
                     <div className="grid grid-cols-2 gap-3">
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.h2Color}
                         color={cardStyle.h2Color || '#ffffff'}
                         onChange={(val) => handleColorChange('h2Color', val)}
                       />
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.h2BgColor}
                         color={cardStyle.h2BackgroundColor || '#3b82f6'}
                         onChange={(val) => handleColorChange('h2BackgroundColor', val)}
@@ -759,12 +858,12 @@ export const Sidebar = () => {
 
                   <ColorSectionWrapper>
                     <div className="grid grid-cols-2 gap-3">
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.h3Color}
                         color={cardStyle.h3Color || '#000000'}
                         onChange={(val) => handleColorChange('h3Color', val)}
                       />
-                      <ColorPicker 
+                      <ColorPicker
                         label={t.h3LineColor}
                         color={cardStyle.h3LineColor || '#3b82f6'}
                         onChange={(val) => handleColorChange('h3LineColor', val)}
@@ -793,8 +892,8 @@ export const Sidebar = () => {
                         key={font}
                         onClick={() => updateCardStyle({ fontFamily: font })}
                         className={`p-2 rounded text-xs border transition-all ${
-                          cardStyle.fontFamily === font 
-                            ? 'bg-black/10 dark:bg-white/20 border-black/20 dark:border-white/40 shadow-sm' 
+                          cardStyle.fontFamily === font
+                            ? 'bg-black/10 dark:bg-white/20 border-black/20 dark:border-white/40 shadow-sm'
                             : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10'
                         }`}
                         style={{ fontFamily: `"${font}"` }}
@@ -804,7 +903,7 @@ export const Sidebar = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 {/* More Local Preset Fonts */}
                 <div className="mb-4">
                   <label className="text-xs font-medium mb-2 block opacity-70">{t.morePresets}</label>
@@ -817,7 +916,7 @@ export const Sidebar = () => {
                     }}
                   />
                 </div>
-                
+
                 <div className="mb-4">
                   <label className="text-xs font-medium opacity-70 mb-2 block">{t.fontSize}</label>
                   <DraggableNumberInput value={cardStyle.fontSize} min={12} max={96} onChange={(val) => updateCardStyle({ fontSize: val })} icon={<ParameterIcon type="fontSize" />} />
@@ -834,8 +933,8 @@ export const Sidebar = () => {
                             key={font.name}
                             onClick={() => updateCardStyle({ fontFamily: font.name })}
                             className={`p-2 rounded text-xs border transition-all truncate ${
-                              cardStyle.fontFamily === font.name 
-                                ? 'bg-black/10 dark:bg-white/20 border-black/20 dark:border-white/40 shadow-sm' 
+                              cardStyle.fontFamily === font.name
+                                ? 'bg-black/10 dark:bg-white/20 border-black/20 dark:border-white/40 shadow-sm'
                                 : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10'
                             }`}
                             style={{ fontFamily: font.name }}
@@ -850,8 +949,8 @@ export const Sidebar = () => {
                   {/* Add Custom Font */}
                   <div className="mb-4">
                      <div className="relative">
-                       <input 
-                         type="file" 
+                       <input
+                         type="file"
                          accept=".ttf,.otf,.woff,.woff2"
                          onChange={(e) => {
                            const file = e.target.files?.[0];
@@ -861,21 +960,21 @@ export const Sidebar = () => {
                              reader.onload = (event) => {
                                if (event.target?.result) {
                                  const url = event.target.result as string;
-                                 
+
                                  const exists = cardStyle.customFonts.some(f => f.name === name);
-                                 
-                                 const isVariable = name.toLowerCase().includes('variable') || 
+
+                                 const isVariable = name.toLowerCase().includes('variable') ||
                                                     name.toLowerCase().includes('var') ||
                                                     name.toLowerCase().includes('vf');
-                                 
+
                                  if (!exists) {
-                                   addCustomFont({ 
-                                     name, 
-                                     url, 
-                                     weight: isVariable ? 'variable' : 'normal' 
+                                   addCustomFont({
+                                     name,
+                                     url,
+                                     weight: isVariable ? 'variable' : 'normal'
                                    });
                                  }
-                                 
+
                                  setTimeout(() => {
                                    updateCardStyle({ fontFamily: name });
                                  }, 100);
@@ -891,17 +990,17 @@ export const Sidebar = () => {
                          <Plus size={14} /> {t.uploadFont}
                        </button>
                      </div>
-                     
+
                      {cardStyle.customFonts.find(f => f.name === cardStyle.fontFamily) && (
                        <div className="mt-2 flex items-center justify-between px-1">
                          <label className="text-[10px] opacity-60 cursor-pointer flex items-center gap-2">
-                           <input 
+                           <input
                              type="checkbox"
                              checked={cardStyle.customFonts.find(f => f.name === cardStyle.fontFamily)?.weight === 'variable'}
                              onChange={(e) => {
                                const font = cardStyle.customFonts.find(f => f.name === cardStyle.fontFamily);
                                if (font) {
-                                 const newFonts = cardStyle.customFonts.map(f => 
+                                 const newFonts = cardStyle.customFonts.map(f =>
                                    f.name === font.name ? { ...f, weight: e.target.checked ? 'variable' : 'normal' } : f
                                  );
                                  updateCardStyle({ customFonts: newFonts as any });
@@ -914,7 +1013,7 @@ export const Sidebar = () => {
                        </div>
                      )}
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     <div>
                       <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.h1FontSize}</label>
@@ -943,26 +1042,26 @@ export const Sidebar = () => {
                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-medium opacity-70">{t.watermark}</label>
-                      <button 
+                      <button
                         onClick={() => updateCardStyle({ watermark: { ...(cardStyle.watermark || {}), enabled: !cardStyle.watermark?.enabled } } as any)}
                         className={`w-10 h-5 rounded-full transition-colors relative ${cardStyle.watermark?.enabled ? 'bg-slate-900 dark:bg-white/90' : 'bg-black/10 dark:bg-white/10'}`}
                       >
                         <div className={`w-3 h-3 rounded-full bg-white dark:bg-black/80 absolute top-1 transition-all ${cardStyle.watermark?.enabled ? 'left-6' : 'left-1'}`} />
                       </button>
                     </div>
-                    
+
                     {cardStyle.watermark?.enabled && (
                       <div className="p-3 bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5 space-y-3">
                         <div>
                           <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.content}</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={cardStyle.watermark?.content}
                             onChange={(e) => updateCardStyle({ watermark: { ...(cardStyle.watermark || {}), content: e.target.value } } as any)}
                             className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded p-2 text-xs focus:border-black/30 dark:focus:border-white/30 focus:outline-none text-slate-900 dark:text-white"
                           />
                         </div>
-                        
+
                         <AdvancedToggle label={t.advancedSettings}>
                           <div>
                              <label className="text-[10px] uppercase tracking-wider opacity-60 mb-1 block">{t.position}</label>
@@ -989,15 +1088,15 @@ export const Sidebar = () => {
                               <DraggableNumberInput value={cardStyle.watermark?.fontSize || 12} min={6} max={64} step={1} onChange={(val) => updateCardStyle({ watermark: { ...(cardStyle.watermark || {}), fontSize: val } } as any)} icon={<ParameterIcon type="fontSize" />} />
                             </div>
                           </div>
-                          <ColorPicker 
+                          <ColorPicker
                             label={t.text}
-                            color={cardStyle.watermark?.color || cardStyle.textColor} 
-                            onChange={(val) => updateCardStyle({ watermark: { ...(cardStyle.watermark || {}), color: val } } as any)} 
+                            color={cardStyle.watermark?.color || cardStyle.textColor}
+                            onChange={(val) => updateCardStyle({ watermark: { ...(cardStyle.watermark || {}), color: val } } as any)}
                           />
 
                           <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/5 dark:border-white/5">
                             <label className="text-[10px] uppercase tracking-wider opacity-60">{t.uppercase}</label>
-                            <button 
+                            <button
                               onClick={() => updateCardStyle({ watermark: { ...(cardStyle.watermark || {}), uppercase: !cardStyle.watermark?.uppercase } } as any)}
                               className={`w-8 h-4 rounded-full transition-colors relative ${cardStyle.watermark?.uppercase ? 'bg-slate-900 dark:bg-white/90' : 'bg-black/10 dark:bg-white/10'}`}
                             >
@@ -1013,14 +1112,14 @@ export const Sidebar = () => {
                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-medium opacity-70">{t.pageNumber}</label>
-                      <button 
+                      <button
                         onClick={() => updateCardStyle({ pageNumber: { ...(cardStyle.pageNumber || {}), enabled: !cardStyle.pageNumber?.enabled } } as any)}
                         className={`w-10 h-5 rounded-full transition-colors relative ${cardStyle.pageNumber?.enabled ? 'bg-slate-900 dark:bg-white/90' : 'bg-black/10 dark:bg-white/10'}`}
                       >
                         <div className={`w-3 h-3 rounded-full bg-white dark:bg-black/80 absolute top-1 transition-all ${cardStyle.pageNumber?.enabled ? 'left-6' : 'left-1'}`} />
                       </button>
                     </div>
-                    
+
                     {cardStyle.pageNumber?.enabled && (
                       <div className="p-3 bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5 space-y-3">
                         <AdvancedToggle label={t.advancedSettings}>
@@ -1049,10 +1148,10 @@ export const Sidebar = () => {
                                 <DraggableNumberInput value={cardStyle.pageNumber?.fontSize || 12} min={6} max={64} step={1} onChange={(val) => updateCardStyle({ pageNumber: { ...(cardStyle.pageNumber || {}), fontSize: val } } as any)} icon={<ParameterIcon type="fontSize" />} />
                               </div>
                             </div>
-                            <ColorPicker 
+                            <ColorPicker
                               label={t.text}
-                              color={cardStyle.pageNumber?.color || cardStyle.textColor} 
-                              onChange={(val) => updateCardStyle({ pageNumber: { ...(cardStyle.pageNumber || {}), color: val } } as any)} 
+                              color={cardStyle.pageNumber?.color || cardStyle.textColor}
+                              onChange={(val) => updateCardStyle({ pageNumber: { ...(cardStyle.pageNumber || {}), color: val } } as any)}
                             />
                         </AdvancedToggle>
                       </div>

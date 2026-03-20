@@ -431,7 +431,7 @@ export const Editor = () => {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -400, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute left-6 top-20 bottom-6 w-[400px] glass-panel rounded-2xl flex flex-col z-40 select-text"
+            className="absolute left-6 top-20 bottom-6 w-[440px] glass-panel rounded-2xl flex flex-col z-40 select-text"
           >
             <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10">
               <div className="flex items-center gap-2 text-sm font-semibold opacity-80">
@@ -461,8 +461,8 @@ export const Editor = () => {
               }}
             />
 
-            <div className="flex-shrink-0 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-2">
-                <div className="flex items-center gap-1">
+            <div className="flex-shrink-0 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-2 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {/* Basic Styles */}
                   <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5">
                     <button onMouseDown={(e) => { e.preventDefault(); toggleInlineStyle('**'); }} title="粗体" className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-70 hover:opacity-100">
@@ -626,7 +626,7 @@ export const Editor = () => {
                   </div>
 
                   {/* Special Tools */}
-                  <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 ml-auto">
+                  <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 sm:ml-auto">
                     <button
                       onClick={() => {
                         if (cardStyle.autoHeight) {
@@ -666,8 +666,25 @@ export const Editor = () => {
                     </button>
                   </div>
                 </div>
+
+                <div className="flex flex-wrap gap-2 px-1">
+                  {[
+                    { label: 'Warning', value: `:::warning 提示\n内容\n:::` },
+                    { label: 'Info', value: `:::info 信息\n内容\n:::` },
+                    { label: '颜色', value: `[color=rose]重点[/color]` },
+                    { label: '背景', value: `[bg=amber]重点[/bg]` },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onMouseDown={(e) => { e.preventDefault(); insertText(item.value); }}
+                      className="rounded-full border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-1 text-[11px] font-medium opacity-80 transition hover:opacity-100 hover:bg-white dark:hover:bg-white/10"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            
+
               <textarea
                 ref={textareaRef}
                 className="flex-1 w-full h-full bg-transparent resize-none focus:outline-none font-mono text-sm leading-relaxed p-4 text-inherit placeholder-inherit/50 custom-scrollbar"
@@ -675,6 +692,7 @@ export const Editor = () => {
                 onChange={(e) => setMarkdown(e.target.value)}
                 onPaste={handlePaste}
                 placeholder="Type your markdown here..."
+                spellCheck={false}
               />
             <div className="p-3 border-t border-black/10 dark:border-white/10 text-center space-y-1.5 bg-black/5 dark:bg-white/5">
               <div className="text-sm font-bold text-blue-600 dark:text-blue-400 opacity-90">
