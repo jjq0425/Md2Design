@@ -11,7 +11,6 @@ function App() {
   const { theme, cardStyle } = useStore();
   const { undo, redo } = useStore.temporal.getState();
 
-  // Initial font injection for all local preset fonts
   useEffect(() => {
     fetch('fonts.json')
       .then(res => res.json())
@@ -23,7 +22,6 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for Ctrl+Z or Cmd+Z
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         if (e.shiftKey) {
           e.preventDefault();
@@ -57,17 +55,15 @@ function App() {
     }
 
     const getFormat = (url: string) => {
-      // Data URI format
       if (url.startsWith('data:')) {
-        const mime = url.slice(5, url.indexOf(';')); // after 'data:' until ';'
+        const mime = url.slice(5, url.indexOf(';'));
         if (mime.includes('woff2')) return 'woff2';
         if (mime.includes('woff')) return 'woff';
         if (mime.includes('otf') || mime.includes('opentype')) return 'opentype';
         if (mime.includes('ttf') || mime.includes('truetype')) return 'truetype';
-        return 'truetype'; // Default fallback
+        return 'truetype';
       }
-      
-      // File extension fallback
+
       const lower = url.toLowerCase();
       if (lower.endsWith('.woff2')) return 'woff2';
       if (lower.endsWith('.woff')) return 'woff';
@@ -78,13 +74,9 @@ function App() {
     const css = (cardStyle.customFonts || [])
       .map((font) => {
         const format = getFormat(font.url);
-        // Ensure font family name is quoted and safe
         const safeName = font.name.replace(/['"\\]/g, '');
-        
-        // Use specified weight or default to 'normal' (400) if not variable
-        // If weight is 'variable', use range. Otherwise use 'normal' to allow synthetic bold
         const fontWeight = font.weight === 'variable' ? '100 900' : 'normal';
-        
+
         return `@font-face {
           font-family: "${safeName}";
           src: url("${font.url}") format("${format}");
@@ -96,14 +88,20 @@ function App() {
       .join('\n');
 
     styleEl.textContent = css;
-    
   }, [cardStyle.customFonts]);
 
   return (
-    <div className={`relative w-full h-screen overflow-hidden font-sans transition-colors duration-500 ${theme === 'dark' ? 'grid-bg text-white' : 'grid-bg-light text-slate-900'}`}>
+    <div className={`relative h-screen w-full overflow-hidden font-sans transition-colors duration-500 ${theme === 'dark' ? 'studio-bg text-white' : 'studio-bg-light text-slate-900'}`}>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="ambient-orb ambient-orb-primary" />
+        <div className="ambient-orb ambient-orb-secondary" />
+        <div className="ambient-orb ambient-orb-tertiary" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_34%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.14),transparent_28%)] dark:bg-[radial-gradient(circle_at_top,rgba(96,165,250,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.18),transparent_24%)]" />
+      </div>
+
       <TopBar />
-      
-      <div className="relative z-10 w-full h-full pt-14 overflow-hidden">
+
+      <div className="relative z-10 h-full w-full overflow-hidden pt-14">
         <Preview />
         <Editor />
         <Sidebar />

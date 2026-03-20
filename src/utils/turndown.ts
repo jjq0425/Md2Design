@@ -6,17 +6,14 @@ const turndownService = new TurndownService({
   headingStyle: 'atx',
   codeBlockStyle: 'fenced',
   emDelimiter: '*',
-  br: '  ', // Use two spaces for line breaks
+  br: '  ',
 });
 
 turndownService.use(gfm);
 
-// Rule to handle Feishu/Notion style line breaks and paragraphs
 turndownService.addRule('paragraph', {
   filter: 'p',
   replacement: function (content) {
-    // If content is empty or just whitespace/br, preserve it as a blank line in a way MD renders it
-    // We use a non-breaking space to ensure it's not collapsed by MD parsers
     const isBlank = !content || content.trim() === '' || content === '<br>' || content === '&nbsp;';
     if (isBlank) {
       return '\n&nbsp;\n';
@@ -25,8 +22,41 @@ turndownService.addRule('paragraph', {
   }
 });
 
-// Custom rule for images to preserve them nicely if needed, or rely on default
-// Feishu often wraps things in div/p. Turndown handles this well.
+turndownService.addRule('advancedInlineStyle', {
+  filter: (node) => {
+    if (!(node instanceof HTMLElement)) return false;
+    if (!['SPAN', 'MARK', 'FONT'].includes(node.tagName)) return false;
+
+    const style = node.getAttribute('style') || '';
+    return /color\s*:|background(?:-color)?\s*:|text-decoration\s*:/i.test(style) || node.tagName === 'MARK';
+  },
+  replacement: (_content, node) => {
+    if (!(node instanceof HTMLElement)) return '';
+
+    const text = node.textContent || '';
+    const style = node.getAttribute('style') || '';
+    const colorMatch = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+    const backgroundMatch = style.match(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i);
+    const underlineMatch = style.match(/(?:^|;)\s*text-decoration[^:]*:\s*([^;]+)/i);
+
+    let content = text;
+
+    if (node.tagName === 'MARK' || backgroundMatch) {
+      const bgColor = backgroundMatch?.[1]?.trim();
+      content = bgColor ? `[bg=${bgColor}]${content}[/bg]` : `==${content}==`;
+    }
+
+    if (colorMatch) {
+      content = `[color=${colorMatch[1].trim()}]${content}[/color]`;
+    }
+
+    if (underlineMatch && /underline/i.test(underlineMatch[1])) {
+      content = `++${content}++`;
+    }
+
+    return content;
+  }
+});
 
 export const htmlToMarkdown = (html: string): string => {
   return turndownService.turndown(html);
