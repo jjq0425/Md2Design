@@ -110,6 +110,18 @@ export type CardStyle = {
   h3Color: string;
   h3LineColor: string;
   underlineColor: string;
+  underlineThickness: number;
+  underlineOffset: number;
+  highlightColor: string;
+  highlightTextColor: string;
+  highlightTilt: number;
+  highlightSpread: number;
+  calloutBackgroundColor: string;
+  calloutBorderColor: string;
+  calloutTitleColor: string;
+  calloutTextColor: string;
+  calloutRadius: number;
+  calloutPadding: number;
   strikethroughColor: string;
 
   // Shadow
@@ -209,9 +221,17 @@ export const PRESET_GRADIENTS = [
 
 const DEFAULT_MARKDOWN_EN = `# There should be a title
 
-This is a **Markdown** to Card converter.
+This is a **Markdown** to Card converter with richer Feishu-style blocks.
 
-> Blockquotes are also supported.
+:::idea Quick idea
+Use ==highlight==, ++hand-drawn underline++, [color=violet]text colors[/color], and [bg=amber]background tags[/bg].
+:::
+
+:::glass Spotlight
+This block is great for cover copy, CTA summaries, or Notion-style featured sections.
+:::
+
+> Traditional blockquotes are also supported.
 
 \`\`\`javascript
 console.log('Code blocks work too!');
@@ -227,7 +247,15 @@ You can split content into multiple cards using three dashes.
 
 const DEFAULT_MARKDOWN_ZH = `# 此处应该有标题
 
-这是一个 **Markdown** 转卡片工具。
+这是一个支持更多飞书风格块的 **Markdown** 转卡片工具。
+
+:::idea 高级块
+现在支持 ==荧光笔==、++手绘下划线++、[color=violet]文字颜色[/color]、[bg=amber]文字背景色[/bg]。
+:::
+
+:::glass Spotlight
+这种块适合做封面文案、总结区或 Notion 风格的重点模块。
+:::
 
 > 引用也是支持的。
 
@@ -310,6 +338,18 @@ const INITIAL_CARD_STYLE: CardStyle = {
   h3Color: '#000000',
   h3LineColor: '#3b82f6',
   underlineColor: '#3b82f6',
+  underlineThickness: 4,
+  underlineOffset: 2,
+  highlightColor: '#fde68a',
+  highlightTextColor: '#111827',
+  highlightTilt: -2,
+  highlightSpread: 65,
+  calloutBackgroundColor: '#eff6ff',
+  calloutBorderColor: '#3b82f6',
+  calloutTitleColor: '#1d4ed8',
+  calloutTextColor: '#0f172a',
+  calloutRadius: 20,
+  calloutPadding: 18,
   strikethroughColor: '#000000',
   shadowEnabled: false,
   shadow: 'none',
