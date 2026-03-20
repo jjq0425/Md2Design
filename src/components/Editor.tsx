@@ -669,8 +669,10 @@ export const Editor = () => {
 
                 <div className="flex flex-wrap gap-2 px-1">
                   {[
-                    { label: 'Warning', value: `:::warning 提示\n内容\n:::` },
-                    { label: 'Info', value: `:::info 信息\n内容\n:::` },
+                    { label: 'Idea', value: `:::idea 灵感\n这里适合放总结、观点、金句。\n:::` },
+                    { label: 'Glass', value: `:::glass Spotlight\n适合做封面文案、强调区、视觉过渡。\n:::` },
+                    { label: 'Quote', value: `:::quote 摘录\n一句值得单独展示的话。\n:::` },
+                    { label: 'Check', value: `:::check Done\n- 完成第一项\n- 完成第二项\n:::` },
                     { label: '颜色', value: `[color=rose]重点[/color]` },
                     { label: '背景', value: `[bg=amber]重点[/bg]` },
                   ].map((item) => (

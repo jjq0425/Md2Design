@@ -223,8 +223,12 @@ const DEFAULT_MARKDOWN_EN = `# There should be a title
 
 This is a **Markdown** to Card converter with richer Feishu-style blocks.
 
-:::note Quick callout
+:::idea Quick idea
 Use ==highlight==, ++hand-drawn underline++, [color=violet]text colors[/color], and [bg=amber]background tags[/bg].
+:::
+
+:::glass Spotlight
+This block is great for cover copy, CTA summaries, or Notion-style featured sections.
 :::
 
 > Traditional blockquotes are also supported.
@@ -245,8 +249,12 @@ const DEFAULT_MARKDOWN_ZH = `# 此处应该有标题
 
 这是一个支持更多飞书风格块的 **Markdown** 转卡片工具。
 
-:::note 高级块
+:::idea 高级块
 现在支持 ==荧光笔==、++手绘下划线++、[color=violet]文字颜色[/color]、[bg=amber]文字背景色[/bg]。
+:::
+
+:::glass Spotlight
+这种块适合做封面文案、总结区或 Notion 风格的重点模块。
 :::
 
 > 引用也是支持的。

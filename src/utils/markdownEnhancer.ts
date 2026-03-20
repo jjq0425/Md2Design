@@ -12,6 +12,12 @@ const CALLOUT_TYPE_MAP: Record<string, string> = {
   abstract: 'info',
   summary: 'info',
   help: 'tip',
+  idea: 'idea',
+  quote: 'quote',
+  glass: 'glass',
+  check: 'check',
+  todo: 'check',
+  feature: 'idea',
 };
 
 const ADVANCED_COLOR_MAP: Record<string, string> = {

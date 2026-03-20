@@ -8,7 +8,7 @@ import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import { motion } from 'framer-motion';
 import { Rnd } from 'react-rnd';
-import { Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Trash2, Maximize2, StretchHorizontal, Crop, Square } from 'lucide-react';
+import { Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square } from 'lucide-react';
 import { preprocessMarkdown, extractCalloutMeta } from '../utils/markdownEnhancer';
 
 const Card = memo(({
@@ -362,51 +362,112 @@ const Card = memo(({
           danger: <ShieldAlert size={16} />,
           important: <ShieldAlert size={16} />,
           question: <Info size={16} />,
+          idea: <Lightbulb size={16} />,
+          quote: <Quote size={16} />,
+          glass: <Sparkles size={16} />,
+          check: <BadgeCheck size={16} />,
         };
 
-        const paletteMap: Record<string, { icon: string }> = {
-          note: { icon: cardStyle.calloutBorderColor || cardStyle.accentColor },
-          info: { icon: cardStyle.calloutBorderColor || '#0ea5e9' },
-          tip: { icon: cardStyle.calloutBorderColor || '#10b981' },
-          success: { icon: cardStyle.calloutBorderColor || '#22c55e' },
-          warning: { icon: cardStyle.calloutBorderColor || '#f59e0b' },
-          danger: { icon: cardStyle.calloutBorderColor || '#ef4444' },
-          important: { icon: cardStyle.calloutBorderColor || '#8b5cf6' },
-          question: { icon: cardStyle.calloutBorderColor || '#6366f1' },
+        const paletteMap: Record<string, { accent: string; surface: string; title: string; variant: 'soft' | 'quote' | 'glass' | 'spotlight' | 'check' }> = {
+          note: { accent: '#3b82f6', surface: '#eff6ff', title: 'Note', variant: 'soft' },
+          info: { accent: '#0ea5e9', surface: '#ecfeff', title: 'Info', variant: 'soft' },
+          tip: { accent: '#14b8a6', surface: '#f0fdfa', title: 'Tip', variant: 'soft' },
+          success: { accent: '#22c55e', surface: '#f0fdf4', title: 'Success', variant: 'check' },
+          warning: { accent: '#f59e0b', surface: '#fffbeb', title: 'Warning', variant: 'soft' },
+          danger: { accent: '#ef4444', surface: '#fef2f2', title: 'Alert', variant: 'soft' },
+          important: { accent: '#8b5cf6', surface: '#f5f3ff', title: 'Important', variant: 'spotlight' },
+          question: { accent: '#6366f1', surface: '#eef2ff', title: 'Question', variant: 'soft' },
+          idea: { accent: '#f97316', surface: '#fff7ed', title: 'Idea', variant: 'spotlight' },
+          quote: { accent: '#475569', surface: '#f8fafc', title: 'Quote', variant: 'quote' },
+          glass: { accent: '#8b5cf6', surface: 'rgba(255,255,255,0.68)', title: 'Glass', variant: 'glass' },
+          check: { accent: '#10b981', surface: '#ecfdf5', title: 'Checklist', variant: 'check' },
         };
 
         const palette = paletteMap[calloutMeta.type] || paletteMap.note;
         const cleanedChildren = childArray.slice(1);
         const calloutPadding = cardStyle.calloutPadding || 18;
         const calloutRadius = cardStyle.calloutRadius || 20;
-        const calloutTitle = calloutMeta.title || calloutMeta.type.toUpperCase();
+        const accent = cardStyle.calloutBorderColor || palette.accent;
+        const backgroundBase = cardStyle.calloutBackgroundColor || palette.surface;
+        const titleColor = cardStyle.calloutTitleColor || accent;
+        const bodyColor = cardStyle.calloutTextColor || cardStyle.textColor;
+        const calloutTitle = calloutMeta.title || palette.title;
         const calloutBody = cleanedChildren.length > 0 ? cleanedChildren : (
           <p className="mb-0 opacity-70">&nbsp;</p>
         );
 
+        const shellStyle = palette.variant === 'glass'
+          ? {
+              background: `linear-gradient(180deg, ${backgroundBase} 0%, rgba(255,255,255,0.28) 100%)`,
+              backdropFilter: 'blur(18px) saturate(135%)',
+              boxShadow: '0 24px 60px -32px rgba(76, 29, 149, 0.4)',
+            }
+          : {
+              background: `linear-gradient(180deg, ${backgroundBase} 0%, color-mix(in srgb, ${backgroundBase} 72%, white) 100%)`,
+            };
+
+        const headerStyle = palette.variant === 'spotlight'
+          ? {
+              background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 18%, transparent) 0%, transparent 100%)`,
+              color: titleColor,
+            }
+          : {
+              background: palette.variant === 'quote'
+                ? 'transparent'
+                : `linear-gradient(135deg, color-mix(in srgb, ${accent} 12%, transparent) 0%, transparent 100%)`,
+              color: titleColor,
+            };
+
         return (
           <div
-            className="my-5 overflow-hidden border shadow-[0_18px_40px_-24px_rgba(15,23,42,0.45)]"
+            className={`my-5 overflow-hidden border relative ${palette.variant === 'quote' ? 'border-dashed' : ''}`}
             style={{
               borderRadius: `${calloutRadius}px`,
-              borderColor: cardStyle.calloutBorderColor || cardStyle.accentColor,
-              background: `linear-gradient(180deg, ${cardStyle.calloutBackgroundColor || '#eff6ff'} 0%, color-mix(in srgb, ${cardStyle.calloutBackgroundColor || '#eff6ff'} 72%, white) 100%)`,
+              borderColor: accent,
+              ...shellStyle,
             }}
           >
+            {palette.variant === 'glass' && (
+              <div className="pointer-events-none absolute inset-x-10 top-0 h-20 rounded-full bg-white/50 blur-3xl" />
+            )}
+            {palette.variant === 'quote' && (
+              <div className="pointer-events-none absolute right-5 top-3 text-6xl font-serif opacity-10" style={{ color: accent }}>
+                “
+              </div>
+            )}
+
             <div
-              className="flex items-center gap-3 font-semibold"
+              className={`relative flex items-center gap-3 font-semibold ${palette.variant === 'quote' ? 'pb-0' : ''}`}
               style={{
-                padding: `${Math.max(calloutPadding - 3, 12)}px ${calloutPadding}px ${Math.max(calloutPadding - 8, 10)}px`,
-                color: cardStyle.calloutTitleColor || cardStyle.calloutBorderColor || cardStyle.accentColor,
-                background: `linear-gradient(135deg, color-mix(in srgb, ${cardStyle.calloutBorderColor || cardStyle.accentColor} 12%, transparent) 0%, transparent 100%)`,
+                padding: `${Math.max(calloutPadding - 3, 12)}px ${calloutPadding}px ${palette.variant === 'quote' ? 0 : Math.max(calloutPadding - 8, 10)}px`,
+                ...headerStyle,
               }}
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl border" style={{ borderColor: cardStyle.calloutBorderColor || cardStyle.accentColor, background: 'rgba(255,255,255,0.65)', color: palette.icon }}>
+              <span
+                className={`flex h-9 w-9 items-center justify-center border ${palette.variant === 'glass' ? 'rounded-[1.1rem]' : 'rounded-2xl'}`}
+                style={{
+                  borderColor: accent,
+                  background: palette.variant === 'quote' ? 'transparent' : 'rgba(255,255,255,0.7)',
+                  color: accent,
+                }}
+              >
                 {iconMap[calloutMeta.type] || iconMap.note}
               </span>
-              <span>{calloutTitle}</span>
+              <div className="flex flex-col gap-0.5">
+                <span>{calloutTitle}</span>
+                {palette.variant === 'check' && <span className="text-[11px] font-medium opacity-65">Notion-style checked block</span>}
+                {palette.variant === 'glass' && <span className="text-[11px] font-medium opacity-65">Soft translucent spotlight block</span>}
+              </div>
             </div>
-            <div className="text-[0.98em] leading-relaxed [&>*:last-child]:mb-0 [&>*:first-child]:mt-0" style={{ color: cardStyle.calloutTextColor || cardStyle.textColor, padding: `0 ${calloutPadding}px ${calloutPadding}px` }}>
+            <div
+              className={`relative text-[0.98em] leading-relaxed [&>*:last-child]:mb-0 [&>*:first-child]:mt-0 ${palette.variant === 'quote' ? 'italic' : ''}`}
+              style={{
+                color: bodyColor,
+                padding: palette.variant === 'quote'
+                  ? `10px ${calloutPadding}px ${calloutPadding}px`
+                  : `0 ${calloutPadding}px ${calloutPadding}px`,
+              }}
+            >
               {calloutBody}
             </div>
           </div>
