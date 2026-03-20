@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store';
 import { useTranslation } from '../i18n';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Edit3, Bold, Italic, List, ListOrdered, Quote, Heading1, Heading2, Heading3, Heading4, Link, Image as ImageIcon, Check, Strikethrough, AlignLeft, AlignCenter, AlignRight, CornerDownLeft, Underline } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Bold, Italic, List, ListOrdered, Quote, Heading1, Heading2, Heading3, Heading4, Link, Image as ImageIcon, Check, Strikethrough, AlignLeft, AlignCenter, AlignRight, CornerDownLeft, Underline, Sparkles, Palette } from 'lucide-react';
 import { htmlToMarkdown } from '../utils/turndown';
 import { paginateMarkdown } from '../utils/pagination';
 
@@ -606,16 +606,33 @@ export const Editor = () => {
                     </button>
                   </div>
 
+                  {/* Advanced Markdown */}
+                  <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 gap-0.5">
+                    <button onMouseDown={(e) => { e.preventDefault(); insertText('==', '=='); }} title="荧光笔" className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
+                      <Sparkles size={16} />
+                    </button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertText('++', '++'); }} title="手绘下划线" className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
+                      <Underline size={16} />
+                    </button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertText('[color=rose]', '[/color]'); }} title="文字颜色" className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
+                      <Palette size={16} />
+                    </button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertText('[bg=amber]', '[/bg]'); }} title="文字背景色" className="px-1.5 text-[11px] font-bold hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
+                      BG
+                    </button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertText(`\n:::note 提示\n`, `\n:::\n`); }} title="Callout 块" className="px-1.5 text-[11px] font-bold hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
+                      :::
+                    </button>
+                  </div>
+
                   {/* Special Tools */}
                   <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 ml-auto">
                     <button
                       onClick={() => {
-                        // If in auto-height mode, switch to portrait first to enable pagination
                         if (cardStyle.autoHeight) {
                             useStore.getState().updateCardStyle({ autoHeight: false, orientation: 'portrait' });
                         }
                         
-                        // Wait for state to update (using setTimeout for simple sync)
                         setTimeout(() => {
                           const currentStyle = useStore.getState().cardStyle;
                           const paginated = paginateMarkdown(markdown, currentStyle);
@@ -665,6 +682,9 @@ export const Editor = () => {
               </div>
               <div className="text-xs opacity-60">
                 {t.editorHint2}
+              </div>
+              <div className="text-[11px] opacity-55">
+                {t.editorHint3}
               </div>
             </div>
           </motion.div>
