@@ -203,6 +203,7 @@ interface AppState {
 
   cardTextLayouts: Record<number, Record<string, TextBlockLayout>>;
   updateCardTextLayout: (cardIndex: number, blockId: string, updates: Partial<TextBlockLayout>) => void;
+  setCardTextLayouts: (layouts: Record<number, Record<string, TextBlockLayout>>) => void;
   
   cardStyle: CardStyle;
   previousCardStyle: CardStyle | null;
@@ -538,6 +539,7 @@ export const useStore = create<AppState>()(
       },
     },
   })),
+  setCardTextLayouts: (layouts) => set({ cardTextLayouts: layouts }),
 
   cardStyle: INITIAL_CARD_STYLE,
   previousCardStyle: null,

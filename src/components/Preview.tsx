@@ -90,16 +90,24 @@ const ToolbarSection = ({
   </button>
 );
 
+type LayoutScope = 'block' | 'page' | 'all';
+type BlockPlacement = 'left' | 'center' | 'right';
+
 const TextBlockToolbar = ({
   anchor,
   layout,
   onChange,
+  onApplyWidth,
+  onApplyPlacement,
 }: {
   anchor: DOMRect | null;
   layout: TextBlockLayout;
   onChange: (updates: Partial<TextBlockLayout>) => void;
+  onApplyWidth: (scope: LayoutScope, width: number) => void;
+  onApplyPlacement: (scope: LayoutScope, placement: BlockPlacement) => void;
 }) => {
   const [openPanel, setOpenPanel] = useState<'type' | 'layout' | 'number' | null>('type');
+  const [layoutScope, setLayoutScope] = useState<LayoutScope>('block');
 
   if (!anchor) return null;
 
@@ -142,12 +150,72 @@ const TextBlockToolbar = ({
       )}
 
       {openPanel === 'layout' && (
-        <div className="mt-2 grid min-w-[320px] grid-cols-2 gap-2 rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
+        <div className="mt-2 grid min-w-[340px] grid-cols-2 gap-2 rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
+          <div className="col-span-2 rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-semibold opacity-60">统一布局范围</span>
+              <span className="opacity-45">支持统一设置后再手动微调</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'block', label: '当前块' },
+                { value: 'page', label: '当前页' },
+                { value: 'all', label: '全部' },
+              ].map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setLayoutScope(item.value as LayoutScope)}
+                  className={`rounded-xl px-3 py-2 text-[11px] font-semibold transition ${layoutScope === item.value ? 'bg-slate-900 text-white dark:bg-sky-500' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-200'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <label className="col-span-2 rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
-            <div className="mb-1 font-semibold opacity-60">块宽度</div>
-            <input type="range" min={180} max={960} step={10} value={layout.width ?? 320} onChange={(e) => onChange({ width: Number(e.target.value) })} className="w-full" />
+            <div className="mb-1 flex items-center justify-between">
+              <span className="font-semibold opacity-60">块宽度</span>
+              <span className="opacity-45">{layoutScope === 'block' ? '仅当前块' : layoutScope === 'page' ? '整页统一' : '全部统一'}</span>
+            </div>
+            <input
+              type="range"
+              min={180}
+              max={960}
+              step={10}
+              value={layout.width ?? 320}
+              onChange={(e) => {
+                const nextWidth = Number(e.target.value);
+                onApplyWidth(layoutScope, nextWidth);
+              }}
+              className="w-full"
+            />
             <div className="mt-1 text-right font-mono">{layout.width ?? 320}px</div>
           </label>
+
+          <div className="col-span-2 rounded-xl bg-white/90 p-2 dark:bg-slate-950/80">
+            <div className="mb-2 text-[11px] font-semibold opacity-60">块在画布中的位置</div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'left', icon: <AlignLeft size={14} />, label: '靠左' },
+                { value: 'center', icon: <AlignCenter size={14} />, label: '居中' },
+                { value: 'right', icon: <AlignRight size={14} />, label: '靠右' },
+              ].map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => {
+                    onApplyPlacement(layoutScope, item.value as BlockPlacement);
+                  }}
+                  className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-600 transition hover:bg-sky-50 hover:text-sky-700 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-sky-500/15 dark:hover:text-sky-200"
+                >
+                  <span className="mx-auto flex w-fit items-center gap-1">{item.icon}{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="col-span-2 flex gap-2 rounded-xl bg-white/90 p-2 dark:bg-slate-950/80">
             {[
               { value: 'left', icon: <AlignLeft size={14} /> },
@@ -160,7 +228,7 @@ const TextBlockToolbar = ({
                 onClick={() => onChange({ textAlign: item.value as TextBlockLayout['textAlign'] })}
                 className={`flex-1 rounded-xl px-3 py-2 ${layout.textAlign === item.value ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-200'}`}
               >
-                <span className="mx-auto flex w-fit items-center gap-1 text-[11px] font-semibold">{item.icon}{item.value === 'left' ? '左对齐' : item.value === 'center' ? '居中' : '右对齐'}</span>
+                <span className="mx-auto flex w-fit items-center gap-1 text-[11px] font-semibold">{item.icon}{item.value === 'left' ? '文字左对齐' : item.value === 'center' ? '文字居中' : '文字右对齐'}</span>
               </button>
             ))}
           </div>
@@ -517,6 +585,8 @@ const Card = memo(({
   setSelectedImageId,
   selectedTextBlock,
   setSelectedTextBlock,
+  onApplyTextBlockWidth,
+  onApplyTextBlockPlacement,
   resolvedStyle,
 }: {
   content: string;
@@ -528,6 +598,8 @@ const Card = memo(({
   setSelectedImageId: (id: string | null) => void;
   selectedTextBlock: { cardIndex: number; blockId: string } | null;
   setSelectedTextBlock: (value: { cardIndex: number; blockId: string } | null) => void;
+  onApplyTextBlockWidth: (cardIndex: number, blockId: string, scope: LayoutScope, width: number) => void;
+  onApplyTextBlockPlacement: (cardIndex: number, blockId: string, scope: LayoutScope, placement: BlockPlacement) => void;
   resolvedStyle: ReturnType<typeof useStore.getState>['cardStyle'];
 }) => {
   const cardStyle = resolvedStyle;
@@ -927,7 +999,15 @@ const Card = memo(({
             </div>
           </div>
 
-          {selectedBlockLayout && <TextBlockToolbar anchor={toolbarRect} layout={selectedBlockLayout} onChange={(updates) => updateCardTextLayout(index, selectedTextBlock!.blockId, updates)} />}
+          {selectedBlockLayout && (
+            <TextBlockToolbar
+              anchor={toolbarRect}
+              layout={selectedBlockLayout}
+              onChange={(updates) => updateCardTextLayout(index, selectedTextBlock!.blockId, updates)}
+              onApplyWidth={(scope, nextWidth) => onApplyTextBlockWidth(index, selectedTextBlock!.blockId, scope, nextWidth)}
+              onApplyPlacement={(scope, placement) => onApplyTextBlockPlacement(index, selectedTextBlock!.blockId, scope, placement)}
+            />
+          )}
         </motion.div>
       </div>
     </div>
@@ -937,7 +1017,7 @@ const Card = memo(({
 Card.displayName = 'Card';
 
 export const Preview = () => {
-  const { markdown, setIsScrolled, setActiveCardIndex, cardStyle, isEditorOpen, isSidebarOpen, previewZoom, setPreviewZoom } = useStore();
+  const { markdown, setIsScrolled, setActiveCardIndex, cardStyle, isEditorOpen, isSidebarOpen, previewZoom, setPreviewZoom, cardTextLayouts, setCardTextLayouts } = useStore();
   const debouncedMarkdown = useDebounce(markdown, 300);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -1040,6 +1120,60 @@ export const Preview = () => {
       return { content: parsed.content, styleId: parsed.styleId, resolvedStyle: resolvePageCardStyle(cardStyle, parsed.styleId) };
     });
 
+
+  const getAvailableTextWidth = (style: ReturnType<typeof useStore.getState>['cardStyle']) => Math.max(220, width - (style.cardPadding.left + style.cardPadding.right));
+
+  const resolvePlacementX = (placement: BlockPlacement, blockWidth: number, availableWidth: number) => {
+    if (placement === 'left') return 0;
+    if (placement === 'center') return Math.max(0, (availableWidth - blockWidth) / 2);
+    return Math.max(0, availableWidth - blockWidth);
+  };
+
+  const updateTextLayoutsByScope = (cardIndex: number, blockId: string, scope: LayoutScope, recipe: (existing: TextBlockLayout, availableWidth: number) => TextBlockLayout) => {
+    const nextLayouts = structuredClone(cardTextLayouts || {});
+    const targetPages = pages.filter((_, pageIndex) => scope === 'all' || pageIndex === cardIndex);
+
+    targetPages.forEach((page) => {
+      const realPageIndex = scope === 'all' ? pages.indexOf(page) : cardIndex;
+      const blockIds = scope === 'block' ? [blockId] : parseMarkdownBlocks(page.content).map((item) => item.id);
+      const availableWidth = getAvailableTextWidth(page.resolvedStyle);
+
+      blockIds.forEach((targetBlockId) => {
+        const currentLayout = nextLayouts[realPageIndex]?.[targetBlockId] || cardTextLayouts[realPageIndex]?.[targetBlockId] || { x: 0, y: 0, width: availableWidth };
+        const normalizedWidth = clamp(currentLayout.width || availableWidth, 180, availableWidth);
+        const nextLayout = recipe({ ...currentLayout, width: normalizedWidth }, availableWidth);
+        nextLayouts[realPageIndex] = {
+          ...(nextLayouts[realPageIndex] || {}),
+          [targetBlockId]: nextLayout,
+        };
+      });
+    });
+
+    setCardTextLayouts(nextLayouts);
+  };
+
+  const handleApplyTextBlockWidth = (cardIndex: number, blockId: string, scope: LayoutScope, nextWidth: number) => {
+    updateTextLayoutsByScope(cardIndex, blockId, scope, (existing, availableWidth) => {
+      const widthValue = clamp(nextWidth, 180, availableWidth);
+      return {
+        ...existing,
+        width: widthValue,
+        x: clamp(existing.x ?? 0, 0, Math.max(0, availableWidth - widthValue)),
+      };
+    });
+  };
+
+  const handleApplyTextBlockPlacement = (cardIndex: number, blockId: string, scope: LayoutScope, placement: BlockPlacement) => {
+    updateTextLayoutsByScope(cardIndex, blockId, scope, (existing, availableWidth) => {
+      const widthValue = clamp(existing.width || availableWidth, 180, availableWidth);
+      return {
+        ...existing,
+        width: widthValue,
+        x: resolvePlacementX(placement, widthValue, availableWidth),
+      };
+    });
+  };
+
   const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
   const paddingLeft = (isDesktop && isEditorOpen) ? '448px' : '2rem';
   const paddingRight = (isDesktop && isSidebarOpen) ? '398px' : '2rem';
@@ -1068,6 +1202,8 @@ export const Preview = () => {
           setSelectedImageId={setSelectedImageId}
           selectedTextBlock={selectedTextBlock}
           setSelectedTextBlock={setSelectedTextBlock}
+          onApplyTextBlockWidth={handleApplyTextBlockWidth}
+          onApplyTextBlockPlacement={handleApplyTextBlockPlacement}
           resolvedStyle={page.resolvedStyle}
         />
       ))}
