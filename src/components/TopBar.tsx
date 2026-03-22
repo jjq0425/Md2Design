@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '../store';
 import { useTranslation } from '../i18n';
-import { Moon, Sun, Download, Upload, Languages, Info, X, ChevronDown, Check, Github, Sparkles, MessageSquare, Check as CheckIcon, RotateCcw, FileJson, FileImage } from 'lucide-react';
+import { Moon, Sun, Download, Upload, Languages, Info, X, ChevronDown, Check, Github, Sparkles, MessageSquare, Check as CheckIcon, RotateCcw, FileJson, FileImage, Smartphone, MonitorSmartphone, Copy, Send, ExternalLink } from 'lucide-react';
 import { toPng, toJpeg } from 'html-to-image';
 import { motion, AnimatePresence } from 'framer-motion';
 import JSZip from 'jszip';
@@ -9,9 +9,43 @@ import { saveAs } from 'file-saver';
 import { ChangelogModal } from './ChangelogModal';
 
 import logoSvg from '../assets/logo.svg';
+import { splitMarkdownPages, extractPageStyleDirective } from '../utils/pageStyles';
+
+type ExportFormat = 'png' | 'jpg';
+type ExportScale = 1 | 2 | 3 | 4;
+type ExportMode = 'single' | 'multiple';
+type ExportTarget = 'folder' | 'zip';
+type NamingMode = 'system' | 'custom';
+type NamingPart = 'prefix' | 'date' | 'custom' | 'number';
+
+type ExportData = {
+  version: string;
+  timestamp: number;
+  content?: string;
+  style?: unknown;
+  title?: string;
+};
+
+type FileSystemWritableFileStreamLike = {
+  write: (data: Blob) => Promise<void>;
+  close: () => Promise<void>;
+};
+
+type FileSystemFileHandleLike = {
+  createWritable: () => Promise<FileSystemWritableFileStreamLike>;
+};
+
+type FileSystemDirectoryHandleLike = {
+  getDirectoryHandle: (name: string, options: { create: boolean }) => Promise<FileSystemDirectoryHandleLike>;
+  getFileHandle: (name: string, options: { create: boolean }) => Promise<FileSystemFileHandleLike>;
+};
+
+type WindowWithDirectoryPicker = Window & {
+  showDirectoryPicker?: () => Promise<FileSystemDirectoryHandleLike>;
+};
 
 export const TopBar = () => {
-  const { theme, toggleTheme, toggleLanguage, isScrolled, previewZoom, setPreviewZoom, setMarkdown, updateCardStyle } = useStore();
+  const { theme, toggleTheme, toggleLanguage, isScrolled, previewZoom, setPreviewZoom, setMarkdown, updateCardStyle, markdown, activeCardIndex } = useStore();
   const t = useTranslation();
   const [showContact, setShowContact] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -22,6 +56,11 @@ export const TopBar = () => {
   });
   const [showChangelog, setShowChangelog] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showXhsPreview, setShowXhsPreview] = useState(false);
+  const [xhsViewport, setXhsViewport] = useState<'web' | 'mobile'>('web');
+  const [xhsPreviewImage, setXhsPreviewImage] = useState<string>('');
+  const [isGeneratingXhsPreview, setIsGeneratingXhsPreview] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState('');
 
   // Onboarding & Support tooltip logic
   useEffect(() => {
@@ -100,13 +139,13 @@ export const TopBar = () => {
   };
 
   // Export Settings
-  const [format, setFormat] = useState<'png' | 'jpg'>('png');
-  const [scale, setScale] = useState<1 | 2 | 3 | 4>(2);
-  const [exportMode, setExportMode] = useState<'single' | 'multiple'>('multiple');
-  const [exportTarget, setExportTarget] = useState<'folder' | 'zip'>('zip');
+  const [format, setFormat] = useState<ExportFormat>('png');
+  const [scale, setScale] = useState<ExportScale>(2);
+  const [exportMode, setExportMode] = useState<ExportMode>('multiple');
+  const [exportTarget, setExportTarget] = useState<ExportTarget>('zip');
   const [folderName, setFolderName] = useState('cards-export'); 
-  const [namingMode, setNamingMode] = useState<'system' | 'custom'>('system');
-  const [namingParts, setNamingParts] = useState<('prefix' | 'date' | 'custom' | 'number')[]>(['prefix', 'date', 'custom', 'number']);
+  const [namingMode, setNamingMode] = useState<NamingMode>('system');
+  const [namingParts, setNamingParts] = useState<NamingPart[]>(['prefix', 'date', 'custom', 'number']);
   const [namingConfigs, setNamingConfigs] = useState({
     prefix: 'Md2Design',
     custom: 'MyCard',
@@ -174,9 +213,90 @@ export const TopBar = () => {
       document.body.removeAttribute('data-md2-exporting');
     }
   };
+
+  const generateCardPreviewBlob = useCallback(async (cardIndex: number) => {
+    const target = document.getElementById(`card-${cardIndex}`) as HTMLElement | null;
+    if (!target) throw new Error('Card not found');
+
+    setExportSnapshotMode(true);
+    try {
+      const dataUrl = await toPng(target, { pixelRatio: 2, cacheBust: true });
+      const response = await fetch(dataUrl);
+      return await response.blob();
+    } finally {
+      setExportSnapshotMode(false);
+    }
+  }, []);
+
+  const handleCopyXhsDraft = async () => {
+    const text = `${xhsPreviewMeta.title}
+
+${xhsPreviewMeta.excerpt}
+
+${xhsPreviewMeta.hashtags.join(' ')}`;
+    await navigator.clipboard.writeText(text);
+    setShareFeedback('已复制标题和文案，可直接去小红书/飞书/微信粘贴。');
+  };
+
+  const handleShareToPhone = async () => {
+    try {
+      const blob = await generateCardPreviewBlob(activeCardIndex);
+      const file = new File([blob], `${xhsPreviewMeta.title || 'card-preview'}.png`, { type: 'image/png' });
+      const shareText = `${xhsPreviewMeta.title}
+${xhsPreviewMeta.hashtags.join(' ')}`;
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: xhsPreviewMeta.title,
+          text: shareText,
+          files: [file],
+        });
+        setShareFeedback('已调用系统分享面板，可发送到微信 / QQ / 飞书等支持接收图片的 App。');
+      } else {
+        saveAs(file);
+        await navigator.clipboard.writeText(shareText);
+        setShareFeedback('当前浏览器不支持直接分享，已下载图片并复制文案。');
+      }
+    } catch (error) {
+      console.error(error);
+      setShareFeedback('发送失败，请改用“导出图片”或移动端浏览器分享。');
+    }
+  };
   const [progress, setProgress] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [previewSize, setPreviewSize] = useState<{ single: string, total: string }>({ single: '-', total: '-' });
+
+  const currentPages = useMemo(() => {
+    const pages = splitMarkdownPages(markdown);
+    return pages.length > 0 ? pages : [markdown];
+  }, [markdown]);
+
+  const activePageMarkdown = useMemo(() => {
+    const raw = currentPages[Math.min(activeCardIndex, Math.max(currentPages.length - 1, 0))] || markdown;
+    return extractPageStyleDirective(raw).content;
+  }, [currentPages, activeCardIndex, markdown]);
+
+  const xhsPreviewMeta = useMemo(() => {
+    const lines = activePageMarkdown
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((line) => !line.startsWith('![') && !line.startsWith(':::') && !line.startsWith('>'));
+
+    const heading = lines.find((line) => /^#{1,3}\s+/.test(line))?.replace(/^#{1,3}\s+/, '') || '今天的设计笔记';
+    const body = lines
+      .map((line) => line.replace(/^#{1,6}\s+/, ''))
+      .join(' ')
+      .replace(/[*_`>#\-[\]]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return {
+      title: heading.slice(0, 20),
+      excerpt: body.slice(0, 120) || '把当前卡片内容整理成适合小红书预览和分享的封面图。',
+      hashtags: ['#AI设计', '#内容排版', '#小红书封面', '#Md2Design'],
+    };
+  }, [activePageMarkdown]);
 
   // Calculate size estimation
   useEffect(() => {
@@ -193,7 +313,7 @@ export const TopBar = () => {
         // Generate sample blob
         const options = { 
             pixelRatio: scale,
-            filter: (node: any) => !node.classList?.contains('export-ignore')
+            filter: (node: HTMLElement) => !node.classList?.contains('export-ignore')
         };
         
         let blob;
@@ -228,10 +348,45 @@ export const TopBar = () => {
     return () => clearTimeout(timer);
   }, [showExport, format, scale, t.calculating]);
 
+  useEffect(() => {
+    if (!showXhsPreview) return;
+
+    let cancelled = false;
+    const renderPreview = async () => {
+      setIsGeneratingXhsPreview(true);
+      try {
+        const blob = await generateCardPreviewBlob(activeCardIndex);
+        if (cancelled) return;
+        const objectUrl = URL.createObjectURL(blob);
+        setXhsPreviewImage((prev) => {
+          if (prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+          return objectUrl;
+        });
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (!cancelled) setIsGeneratingXhsPreview(false);
+      }
+    };
+
+    renderPreview();
+    return () => {
+      cancelled = true;
+    };
+  }, [showXhsPreview, activeCardIndex, markdown, generateCardPreviewBlob]);
+
+  useEffect(() => {
+    return () => {
+      if (xhsPreviewImage.startsWith('blob:')) {
+        URL.revokeObjectURL(xhsPreviewImage);
+      }
+    };
+  }, [xhsPreviewImage]);
+
   const handleExportData = () => {
     try {
       const state = useStore.getState();
-      const data: any = {
+      const data: ExportData = {
         version: '1.0.0',
         timestamp: Date.now(),
       };
@@ -304,7 +459,7 @@ export const TopBar = () => {
         const cards = Array.from(document.querySelectorAll('[id^="card-"]')) as HTMLElement[];
         const options = { 
             pixelRatio: scale,
-            filter: (node: any) => !node.classList?.contains('export-ignore')
+            filter: (node: HTMLElement) => !node.classList?.contains('export-ignore')
         };
         
         let completed = 0;
@@ -390,13 +545,12 @@ export const TopBar = () => {
             };
 
             // Folder Export (File System Access API)
-            if (exportTarget === 'folder' && 'showDirectoryPicker' in window) {
+            const windowWithDirectoryPicker = window as WindowWithDirectoryPicker;
+            if (exportTarget === 'folder' && windowWithDirectoryPicker.showDirectoryPicker) {
                 try {
-                    // @ts-ignore
-                    const dirHandle = await window.showDirectoryPicker();
+                    const dirHandle = await windowWithDirectoryPicker.showDirectoryPicker();
                     let targetHandle = dirHandle;
                     if (folderName) {
-                        // @ts-ignore
                         targetHandle = await dirHandle.getDirectoryHandle(folderName, { create: true });
                     }
 
@@ -405,9 +559,7 @@ export const TopBar = () => {
                     const tasks = cards.map((card, i) => async () => {
                         const blob = await generateBlob(card);
                         const fileName = `${generateFileName(i, cards.length)}.${format}`;
-                        // @ts-ignore
                         const fileHandle = await targetHandle.getFileHandle(fileName, { create: true });
-                        // @ts-ignore
                         const writable = await fileHandle.createWritable();
                         await writable.write(blob);
                         await writable.close();
@@ -718,6 +870,14 @@ export const TopBar = () => {
           />
 
           <button 
+             onClick={() => setShowXhsPreview(true)}
+             className="flex items-center gap-2 px-4 py-1.5 bg-[#ff2442] text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity shadow-lg shadow-[#ff2442]/20"
+          >
+            <MonitorSmartphone size={16} />
+            <span className="hidden sm:inline">小红书预览</span>
+          </button>
+
+          <button 
              onClick={() => setShowExport(true)}
              className="flex items-center gap-2 px-4 py-1.5 bg-black text-white dark:bg-white dark:text-black rounded-full text-sm font-medium hover:opacity-90 transition-opacity shadow-lg"
           >
@@ -729,6 +889,164 @@ export const TopBar = () => {
 
       {/* Export Modal */}
       <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
+      
+      <AnimatePresence>
+        {showXhsPreview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[65] flex items-center justify-center bg-black/65 backdrop-blur-sm p-4"
+            onClick={() => setShowXhsPreview(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.94, opacity: 0 }}
+              className="w-full max-w-6xl rounded-[32px] border border-white/15 bg-white/92 p-6 shadow-2xl dark:bg-[#0b1220]/95"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-lg font-bold text-slate-900 dark:text-white">小红书预览</div>
+                  <div className="mt-1 text-sm text-slate-500 dark:text-white/55">生成接近小红书网页版 / 手机版的发布页预览，并支持直接发送到手机分享面板。</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-full border border-black/10 bg-black/5 p-1 dark:border-white/10 dark:bg-white/5">
+                    <button
+                      onClick={() => setXhsViewport('web')}
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition ${xhsViewport === 'web' ? 'bg-white text-slate-900 shadow-sm dark:bg-white dark:text-slate-900' : 'text-slate-500 dark:text-white/55'}`}
+                    >
+                      <MonitorSmartphone size={14} /> 网页版
+                    </button>
+                    <button
+                      onClick={() => setXhsViewport('mobile')}
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition ${xhsViewport === 'mobile' ? 'bg-white text-slate-900 shadow-sm dark:bg-white dark:text-slate-900' : 'text-slate-500 dark:text-white/55'}`}
+                    >
+                      <Smartphone size={14} /> 手机版
+                    </button>
+                  </div>
+                  <button onClick={() => setShowXhsPreview(false)} className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10">
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_360px]">
+                <div className="rounded-[28px] border border-black/8 bg-[#f7f8fa] p-4 dark:border-white/10 dark:bg-[#111827]">
+                  {xhsViewport === 'web' ? (
+                    <div className="overflow-hidden rounded-[26px] border border-black/6 bg-white shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#0f172a]">
+                      <div className="flex items-center justify-between border-b border-black/6 px-5 py-3 dark:border-white/10">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-[#ff2442]/12 text-[#ff2442] flex items-center justify-center font-black">薯</div>
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-white">{xhsPreviewMeta.title}</div>
+                            <div className="text-xs text-slate-400">推荐笔记预览 · Web</div>
+                          </div>
+                        </div>
+                        <div className="rounded-full bg-[#ff2442] px-4 py-1.5 text-xs font-semibold text-white">去发布</div>
+                      </div>
+                      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+                        <div className="bg-[#fafafa] p-4 dark:bg-[#111827]">
+                          <div className="overflow-hidden rounded-[24px] bg-white shadow-sm dark:bg-slate-900">
+                            {isGeneratingXhsPreview ? (
+                              <div className="flex h-[560px] items-center justify-center text-sm text-slate-400">正在生成预览图…</div>
+                            ) : (
+                              <img src={xhsPreviewImage} alt="小红书预览图" className="block h-[560px] w-full object-cover" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="border-l border-black/6 bg-white p-5 dark:border-white/10 dark:bg-slate-950/60">
+                          <div className="mb-4 flex items-center gap-3">
+                            <div className="h-11 w-11 rounded-full bg-linear-to-br from-pink-500 to-orange-400" />
+                            <div>
+                              <div className="text-sm font-semibold text-slate-900 dark:text-white">Md2Design 创作者</div>
+                              <div className="text-xs text-slate-400">刚刚 · 广东</div>
+                            </div>
+                          </div>
+                          <div className="text-xl font-bold leading-snug text-slate-900 dark:text-white">{xhsPreviewMeta.title}</div>
+                          <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-white/70">{xhsPreviewMeta.excerpt}</p>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {xhsPreviewMeta.hashtags.map((tag) => (
+                              <span key={tag} className="rounded-full bg-[#ff2442]/8 px-3 py-1 text-xs font-medium text-[#ff2442]">{tag}</span>
+                            ))}
+                          </div>
+                          <div className="mt-6 grid grid-cols-3 gap-3 text-center text-xs text-slate-500 dark:text-white/55">
+                            <div className="rounded-2xl bg-black/[0.03] p-3 dark:bg-white/5"><div className="text-lg font-bold text-slate-900 dark:text-white">3.2k</div>赞</div>
+                            <div className="rounded-2xl bg-black/[0.03] p-3 dark:bg-white/5"><div className="text-lg font-bold text-slate-900 dark:text-white">286</div>收藏</div>
+                            <div className="rounded-2xl bg-black/[0.03] p-3 dark:bg-white/5"><div className="text-lg font-bold text-slate-900 dark:text-white">98</div>评论</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mx-auto w-[360px] rounded-[40px] border border-black/10 bg-black p-3 shadow-[0_28px_80px_-32px_rgba(15,23,42,0.6)]">
+                      <div className="overflow-hidden rounded-[30px] bg-white dark:bg-[#0f172a]">
+                        <div className="flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white">
+                          <span>9:41</span>
+                          <span className="rounded-full bg-[#ff2442]/10 px-3 py-1 text-[#ff2442]">小红书</span>
+                          <span>5G</span>
+                        </div>
+                        <div className="border-b border-black/6 px-4 py-3 dark:border-white/10">
+                          <div className="text-center text-sm font-semibold text-slate-900 dark:text-white">笔记详情</div>
+                        </div>
+                        <div className="max-h-[720px] overflow-y-auto bg-[#f8f8f8] p-3 dark:bg-[#111827]">
+                          <div className="rounded-[26px] bg-white p-3 shadow-sm dark:bg-slate-950/70">
+                            {isGeneratingXhsPreview ? (
+                              <div className="flex h-[420px] items-center justify-center text-sm text-slate-400">正在生成预览图…</div>
+                            ) : (
+                              <img src={xhsPreviewImage} alt="小红书移动端预览图" className="block h-[420px] w-full rounded-[22px] object-cover" />
+                            )}
+                            <div className="mt-4 text-[19px] font-bold leading-snug text-slate-900 dark:text-white">{xhsPreviewMeta.title}</div>
+                            <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-white/70">{xhsPreviewMeta.excerpt}</p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {xhsPreviewMeta.hashtags.map((tag) => (
+                                <span key={tag} className="text-xs font-medium text-[#ff2442]">{tag}</span>
+                              ))}
+                            </div>
+                            <div className="mt-4 flex items-center gap-3 border-t border-black/6 pt-4 dark:border-white/10">
+                              <div className="h-10 w-10 rounded-full bg-linear-to-br from-pink-500 to-orange-400" />
+                              <div className="flex-1">
+                                <div className="text-sm font-semibold text-slate-900 dark:text-white">Md2Design 创作者</div>
+                                <div className="text-xs text-slate-400">点击右上角分享给微信 / QQ / 飞书</div>
+                              </div>
+                              <button className="rounded-full bg-[#ff2442] px-4 py-1.5 text-xs font-semibold text-white">关注</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-[28px] border border-black/8 bg-white/90 p-5 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#0b1220]/85">
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">分发 / 发布辅助</div>
+                  <div className="mt-2 text-xs leading-6 text-slate-500 dark:text-white/55">纯前端下，我可以帮你生成预览、复制文案、调起系统分享面板；但不能稳定实现“小红书自动发帖”，因为浏览器端没有可靠的官方发布接口可直接调用。</div>
+
+                  <div className="mt-4 space-y-3">
+                    <button onClick={handleShareToPhone} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
+                      <Send size={16} /> 发送到手机 / 微信 / QQ / 飞书
+                    </button>
+                    <button onClick={handleCopyXhsDraft} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-black/10 px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-black/5 dark:border-white/10 dark:text-white dark:hover:bg-white/5">
+                      <Copy size={16} /> 复制标题 + 文案
+                    </button>
+                    <a href="https://www.xiaohongshu.com/explore" target="_blank" rel="noreferrer" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#ff2442]/20 bg-[#ff2442]/6 px-4 py-3 text-sm font-semibold text-[#ff2442] transition hover:bg-[#ff2442]/10">
+                      <ExternalLink size={16} /> 打开小红书网页版
+                    </a>
+                    <div className="rounded-2xl bg-black/[0.03] p-4 text-xs leading-6 text-slate-500 dark:bg-white/5 dark:text-white/55">
+                      <div className="mb-1 font-semibold text-slate-900 dark:text-white">自动发帖说明</div>
+                      当前实现不接数据库，也不走后端。基于这个前提，只能做“预览 + 复制 + 系统分享”。如果未来你有可用的小红书开放接口或企业内部发布 API，我可以再帮你接成真正的一键发布。
+                    </div>
+                    {shareFeedback && (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-6 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">{shareFeedback}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       <AnimatePresence>
         {showExport && (
@@ -849,10 +1167,10 @@ export const TopBar = () => {
                      <div>
                        <label className="text-xs font-medium text-slate-500 dark:text-white/50 mb-2 block uppercase tracking-wider">{t.format}</label>
                        <div className="flex p-1 bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5">
-                         {['png', 'jpg'].map((f) => (
+                         {(['png', 'jpg'] as ExportFormat[]).map((f) => (
                            <button
                              key={f}
-                             onClick={() => setFormat(f as any)}
+                             onClick={() => setFormat(f)}
                              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all uppercase ${
                                format === f ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
                              }`}
@@ -868,7 +1186,7 @@ export const TopBar = () => {
                          {[1, 2, 3, 4].map((s) => (
                            <button
                              key={s}
-                             onClick={() => setScale(s as any)}
+                             onClick={() => setScale(s as ExportScale)}
                              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                                scale === s ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
                              }`}
@@ -890,7 +1208,7 @@ export const TopBar = () => {
                        ].map((mode) => (
                          <button
                            key={mode.value}
-                           onClick={() => setExportMode(mode.value as any)}
+                           onClick={() => setExportMode(mode.value as ExportMode)}
                            className={`p-3 rounded-xl border transition-all text-left flex items-center justify-between group ${
                              exportMode === mode.value 
                                ? 'bg-blue-500/10 border-blue-500/50' 
@@ -924,7 +1242,7 @@ export const TopBar = () => {
                          ].map((target) => (
                            <button
                              key={target.value}
-                             onClick={() => setExportTarget(target.value as any)}
+                             onClick={() => setExportTarget(target.value as ExportTarget)}
                              className={`p-3 rounded-xl border transition-all text-left flex items-center justify-between group ${
                                exportTarget === target.value 
                                  ? 'bg-blue-500/10 border-blue-500/50' 
@@ -979,7 +1297,7 @@ export const TopBar = () => {
                         ].map((m) => (
                           <button
                             key={m.id}
-                            onClick={() => setNamingMode(m.id as any)}
+                            onClick={() => setNamingMode(m.id as NamingMode)}
                             className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                               namingMode === m.id ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white'
                             }`}
@@ -1018,21 +1336,21 @@ export const TopBar = () => {
                               <button
                                 key={part.id}
                                 onClick={() => {
-                                  if (namingParts.includes(part.id as any)) {
+                                  if (namingParts.includes(part.id as NamingPart)) {
                                     setNamingParts(namingParts.filter(p => p !== part.id));
                                   } else {
-                                    setNamingParts([...namingParts, part.id as any]);
+                                    setNamingParts([...namingParts, part.id as NamingPart]);
                                   }
                                 }}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                                  namingParts.includes(part.id as any)
+                                  namingParts.includes(part.id as NamingPart)
                                     ? 'bg-blue-500 border-blue-500 text-white shadow-md'
                                     : 'bg-black/5 dark:bg-white/5 border-black/5 dark:border-white/5 text-black/40 dark:text-white/40'
                                 }`}
                               >
                                 {part.label}
-                                {namingParts.includes(part.id as any) && (
-                                  <span className="ml-1.5 opacity-60">{namingParts.indexOf(part.id as any) + 1}</span>
+                                {namingParts.includes(part.id as NamingPart) && (
+                                  <span className="ml-1.5 opacity-60">{namingParts.indexOf(part.id as NamingPart) + 1}</span>
                                 )}
                               </button>
                             ))}
