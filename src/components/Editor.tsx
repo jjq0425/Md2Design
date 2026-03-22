@@ -2,15 +2,19 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store';
 import { useTranslation } from '../i18n';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Edit3, Bold, Italic, List, ListOrdered, Quote, Heading1, Heading2, Heading3, Heading4, Link, Image as ImageIcon, Check, Strikethrough, AlignLeft, AlignCenter, AlignRight, CornerDownLeft, Underline, Sparkles, Palette } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Bold, Italic, List, ListOrdered, Quote, Heading1, Heading2, Heading3, Heading4, Link, Image as ImageIcon, Check, Strikethrough, AlignLeft, AlignCenter, AlignRight, CornerDownLeft, Underline, Sparkles, Palette, PenTool, Workflow, ExternalLink, X } from 'lucide-react';
 import { htmlToMarkdown } from '../utils/turndown';
 import { paginateMarkdown } from '../utils/pagination';
+import { LIVE_EMBED_PRESETS, buildLiveEmbedMarkup, type LiveEmbedProvider } from '../utils/liveEmbeds';
+import { STYLE_TEMPLATES } from '../utils/styleTemplates';
 
 export const Editor = () => {
-  const { markdown, setMarkdown, addCardImage, cardStyle, isEditorOpen, setIsEditorOpen } = useStore();
+  const { markdown, setMarkdown, addCardImage, cardStyle, updateCardStyle, isEditorOpen, setIsEditorOpen } = useStore();
   const t = useTranslation();
   const [showPaginationToast, setShowPaginationToast] = useState(false);
   const [activeMenu, setActiveMenu] = useState<'heading' | 'align' | 'list' | null>(null);
+  const [drawingProvider, setDrawingProvider] = useState<LiveEmbedProvider>('excalidraw');
+  const [showDrawingDock, setShowDrawingDock] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -299,6 +303,21 @@ export const Editor = () => {
         textarea.setSelectionRange(lineStart, lineStart + wrapped.length);
       }, 0);
     }
+  };
+
+  const insertLiveEmbed = (provider: LiveEmbedProvider) => {
+    insertText(buildLiveEmbedMarkup(provider));
+  };
+
+  const applyStyleTemplate = (templateId: string) => {
+    const template = STYLE_TEMPLATES.find((item) => item.id === templateId);
+    if (!template) return;
+    updateCardStyle(template.patch);
+  };
+
+  const openDrawingDock = (provider: LiveEmbedProvider) => {
+    setDrawingProvider(provider);
+    setShowDrawingDock(true);
   };
 
   const handleImageUpload = (file: File) => {
@@ -685,7 +704,118 @@ export const Editor = () => {
                     </button>
                   ))}
                 </div>
+
+                <div className="px-1 space-y-2">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold opacity-60">
+                    <Palette size={12} /> 示例风格模板
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {STYLE_TEMPLATES.map((template) => (
+                      <button
+                        key={template.id}
+                        onMouseDown={(e) => { e.preventDefault(); applyStyleTemplate(template.id); }}
+                        className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/5 px-3 py-2 text-left transition hover:bg-white dark:hover:bg-white/10"
+                      >
+                        <div className="text-xs font-semibold">{template.name}</div>
+                        <div className="mt-1 text-[10px] leading-relaxed opacity-65">{template.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="px-1 space-y-2">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold opacity-60">
+                    <PenTool size={12} /> 实时绘图
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onMouseDown={(e) => { e.preventDefault(); openDrawingDock('excalidraw'); }}
+                      className="rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/5 px-3 py-1 text-[11px] font-medium transition hover:bg-white dark:hover:bg-white/10"
+                    >
+                      打开 Excalidraw
+                    </button>
+                    <button
+                      onMouseDown={(e) => { e.preventDefault(); openDrawingDock('drawio'); }}
+                      className="rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/5 px-3 py-1 text-[11px] font-medium transition hover:bg-white dark:hover:bg-white/10"
+                    >
+                      打开 Draw.io
+                    </button>
+                    <button
+                      onMouseDown={(e) => { e.preventDefault(); insertLiveEmbed('excalidraw'); }}
+                      className="rounded-full border border-sky-200/80 bg-sky-50 px-3 py-1 text-[11px] font-medium text-sky-700 transition hover:bg-sky-100"
+                    >
+                      插入 Excalidraw 卡片
+                    </button>
+                    <button
+                      onMouseDown={(e) => { e.preventDefault(); insertLiveEmbed('drawio'); }}
+                      className="rounded-full border border-cyan-200/80 bg-cyan-50 px-3 py-1 text-[11px] font-medium text-cyan-700 transition hover:bg-cyan-100"
+                    >
+                      插入 Draw.io 卡片
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {showDrawingDock && (
+                <div className="mx-4 mt-4 rounded-3xl border border-black/10 bg-white/70 p-3 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.45)] backdrop-blur-md dark:border-white/10 dark:bg-slate-950/40">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <PenTool size={15} /> {LIVE_EMBED_PRESETS[drawingProvider].label} 实时绘图
+                      </div>
+                      <div className="mt-1 text-[11px] opacity-60">可直接在下方面板绘图，也可以把实时白板嵌入到卡片中。</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => insertLiveEmbed(drawingProvider)}
+                        className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-medium text-white transition hover:bg-sky-600"
+                      >
+                        插入到内容
+                      </button>
+                      <button
+                        onClick={() => setShowDrawingDock(false)}
+                        className="rounded-full p-1.5 transition hover:bg-black/5 dark:hover:bg-white/10"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    {(['excalidraw', 'drawio'] as LiveEmbedProvider[]).map((provider) => (
+                      <button
+                        key={provider}
+                        onClick={() => setDrawingProvider(provider)}
+                        className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${drawingProvider === provider ? 'bg-sky-500 text-white' : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                      >
+                        {LIVE_EMBED_PRESETS[provider].label}
+                      </button>
+                    ))}
+                    <a
+                      href={LIVE_EMBED_PRESETS[drawingProvider].editorUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 hover:text-sky-500"
+                    >
+                      新窗口打开 <ExternalLink size={12} />
+                    </a>
+                  </div>
+
+                  <div className="overflow-hidden rounded-[22px] border border-sky-100 bg-white">
+                    <iframe
+                      title={`${LIVE_EMBED_PRESETS[drawingProvider].label} live editor`}
+                      src={LIVE_EMBED_PRESETS[drawingProvider].editorUrl}
+                      className="block h-[320px] w-full border-0"
+                      allow="clipboard-read; clipboard-write; fullscreen"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 text-[10px] opacity-55">
+                    <Workflow size={12} />
+                    如果第三方站点限制 iframe，可使用右上角“新窗口打开”继续绘图，再把链接作为实时画板插入。
+                  </div>
+                </div>
+              )}
 
               <textarea
                 ref={textareaRef}

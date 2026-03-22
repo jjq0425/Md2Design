@@ -98,10 +98,13 @@ export const PresetCard = ({
   };
 
   return (
-    <div className="relative shadow-2xl overflow-hidden flex flex-col flex-shrink-0" style={outerStyle}>
+    <div className="md2-card-shell relative shadow-2xl overflow-hidden flex flex-col flex-shrink-0" style={outerStyle}>
       {renderOuterBackground()}
 
       <div className="relative w-full h-full flex flex-col overflow-hidden" style={innerStyle}>
+        {style.customCSS && (
+          <style>{style.customCSS.replace(/:card\b/g, '.md2-card-shell').replace(/:embed\b/g, '.md2-live-embed')}</style>
+        )}
         {renderInnerBackground()}
 
         {style.template === 'default' && (
