@@ -10,6 +10,51 @@ import { motion } from 'framer-motion';
 import { Rnd } from 'react-rnd';
 import { Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square } from 'lucide-react';
 import { preprocessMarkdown, extractCalloutMeta } from '../utils/markdownEnhancer';
+import { LIVE_EMBED_PRESETS, isSafeEmbedUrl } from '../utils/liveEmbeds';
+
+const LiveEmbedCard = ({
+  provider = 'excalidraw',
+  src,
+  title,
+  height,
+}: {
+  provider?: string;
+  src?: string;
+  title?: string;
+  height?: number;
+}) => {
+  const preset = provider === 'drawio' ? LIVE_EMBED_PRESETS.drawio : LIVE_EMBED_PRESETS.excalidraw;
+  const safeSrc = src && isSafeEmbedUrl(src) ? src : preset.previewUrl;
+  const safeHeight = Math.max(260, Math.min(height || preset.defaultHeight, 960));
+
+  return (
+    <div className="md2-live-embed group my-5 overflow-hidden rounded-[28px] border border-sky-200/70 bg-white/80 shadow-[0_24px_60px_-34px_rgba(14,165,233,0.38)]">
+      <div className="flex items-center justify-between gap-3 border-b border-sky-100/90 bg-linear-to-r from-sky-50 to-blue-50 px-4 py-3 text-xs font-semibold text-slate-700">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
+          <span>{title || preset.defaultTitle}</span>
+        </div>
+        <a
+          href={safeSrc}
+          target="_blank"
+          rel="noreferrer"
+          className="pointer-events-auto rounded-full bg-slate-900 px-3 py-1 text-[11px] font-medium text-white no-underline transition hover:bg-sky-600"
+        >
+          打开白板
+        </a>
+      </div>
+      <iframe
+        src={safeSrc}
+        title={title || preset.defaultTitle}
+        className="block w-full border-0 bg-white"
+        style={{ height: `${safeHeight}px` }}
+        loading="lazy"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allow="clipboard-read; clipboard-write; fullscreen"
+      />
+    </div>
+  );
+};
 
 const Card = memo(({
   content,
@@ -271,6 +316,17 @@ const Card = memo(({
       );
     },
     div: ({ node: _node, style, children, ...props }: any) => {
+       if (props['data-live-embed']) {
+         return (
+           <LiveEmbedCard
+             provider={props['data-provider']}
+             src={props['data-src']}
+             title={props['data-title']}
+             height={Number(props['data-height'])}
+           />
+         );
+       }
+
        const isAlignment = style?.textAlign;
        return (
          <div
@@ -562,7 +618,7 @@ const Card = memo(({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
-          className={`relative flex flex-col flex-shrink-0 group select-none overflow-hidden ${isResetting && !draggingId ? 'transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)]' : ''}`}
+          className={`md2-card-shell relative flex flex-col flex-shrink-0 group select-none overflow-hidden ${isResetting && !draggingId ? 'transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)]' : ''}`}
           style={outerStyle}
           id={`card-${index}`}
           onMouseDown={(e) => {
@@ -956,6 +1012,45 @@ export const Preview = () => {
     window.addEventListener('wheel', handleWheel, { passive: false });
     return () => window.removeEventListener('wheel', handleWheel);
   }, [previewZoom, autoScale, setPreviewZoom]);
+
+  useEffect(() => {
+    const handleWindowPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.closest('textarea, input, [contenteditable="true"]'))) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (!item.type.startsWith('image/')) continue;
+
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result;
+          if (typeof result !== 'string') return;
+
+          const state = useStore.getState();
+          const imageId = crypto.randomUUID();
+          const { width: cardWidth } = getCardDimensions(state.cardStyle);
+          state.addCardImage(state.activeCardIndex, result, imageId);
+          state.updateCardImage(state.activeCardIndex, imageId, {
+            x: Math.max(24, cardWidth * 0.15),
+            y: 48,
+          });
+          setSelectedImageId(imageId);
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+    };
+
+    window.addEventListener('paste', handleWindowPaste);
+    return () => window.removeEventListener('paste', handleWindowPaste);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
