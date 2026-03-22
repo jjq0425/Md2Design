@@ -90,6 +90,21 @@ function App() {
     styleEl.textContent = css;
   }, [cardStyle.customFonts]);
 
+  useEffect(() => {
+    const styleId = 'md2-custom-css-style';
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+
+    styleEl.textContent = (cardStyle.customCSS || '')
+      .replace(/:card\b/g, '.md2-card-shell')
+      .replace(/:embed\b/g, '.md2-live-embed');
+  }, [cardStyle.customCSS]);
+
   return (
     <div className={`relative h-screen w-full overflow-hidden font-sans transition-colors duration-500 ${theme === 'dark' ? 'studio-bg text-white' : 'studio-bg-light text-slate-900'}`}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
