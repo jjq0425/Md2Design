@@ -13,29 +13,42 @@ export const Editor = () => {
   const { markdown, setMarkdown, addCardImage, cardStyle, isEditorOpen, setIsEditorOpen, updateCardStyle } = useStore();
   const t = useTranslation();
   const [showPaginationToast, setShowPaginationToast] = useState(false);
+  const [paginationToastText, setPaginationToastText] = useState({
+    title: '已自动分页',
+    description: '关闭自适应高度后，已按页面高度自动切割。可按 Ctrl/Cmd+Z 撤回。',
+  });
   const [activeMenu, setActiveMenu] = useState<'heading' | 'align' | 'list' | null>(null);
   const [activePanel, setActivePanel] = useState<'page-style' | 'whiteboard' | null>(null);
   const [showDrawingDock, setShowDrawingDock] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [autoPaginateEnabled, setAutoPaginateEnabled] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevAutoHeightRef = useRef(cardStyle.autoHeight);
 
+  const showPaginationFeedback = (title: string, description: string) => {
+    setPaginationToastText({ title, description });
+    setShowPaginationToast(true);
+    window.setTimeout(() => setShowPaginationToast(false), 4000);
+  };
+
   // Auto-paginate when switching from auto-height to fixed-height mode
   useEffect(() => {
-    if (prevAutoHeightRef.current && !cardStyle.autoHeight && markdown.length > 500) {
+    if (autoPaginateEnabled && prevAutoHeightRef.current && !cardStyle.autoHeight && markdown.length > 500) {
       const paginated = paginateMarkdown(markdown, cardStyle);
       if (paginated !== markdown) {
         setMarkdown(paginated);
         window.setTimeout(() => {
-          setShowPaginationToast(true);
-          window.setTimeout(() => setShowPaginationToast(false), 4000);
+          showPaginationFeedback(
+            '已自动分页',
+            '关闭自适应高度后，已按页面高度自动切割。可按 Ctrl/Cmd+Z 撤回。'
+          );
         }, 0);
       }
     }
     prevAutoHeightRef.current = cardStyle.autoHeight;
-  }, [cardStyle.autoHeight, markdown, cardStyle, setMarkdown]);
+  }, [autoPaginateEnabled, cardStyle.autoHeight, markdown, cardStyle, setMarkdown]);
 
   const insertText = (before: string, after: string = '') => {
     const textarea = textareaRef.current;
@@ -661,24 +674,47 @@ export const Editor = () => {
                   </div>
 
                   {/* Special Tools */}
-                  <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 sm:ml-auto">
+                  <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg p-1 sm:ml-auto">
+                    <div className="flex items-center gap-2 px-2">
+                      <span className="text-[11px] font-semibold opacity-70">自动分页</span>
+                      <button
+                        type="button"
+                        onClick={() => setAutoPaginateEnabled((value) => !value)}
+                        aria-pressed={autoPaginateEnabled}
+                        className={`relative h-5 w-9 rounded-full transition-colors ${autoPaginateEnabled ? 'bg-blue-500' : 'bg-black/15 dark:bg-white/15'}`}
+                        title={autoPaginateEnabled ? '关闭自动分页' : '开启自动分页'}
+                      >
+                        <span
+                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${autoPaginateEnabled ? 'left-[18px]' : 'left-0.5'}`}
+                        />
+                      </button>
+                    </div>
                     <button
+                      type="button"
                       onClick={() => {
                         if (cardStyle.autoHeight) {
-                            updateCardStyle({ autoHeight: false, orientation: 'portrait' });
+                          showPaginationFeedback(
+                            '自动分页未执行',
+                            '当前仍是自适应高度，请先关闭自适应高度，或开启上方开关后再切换。'
+                          );
+                          return;
                         }
-                        
-                        setTimeout(() => {
-                          const currentStyle = useStore.getState().cardStyle;
-                          const paginated = paginateMarkdown(markdown, currentStyle);
-                          if (paginated !== markdown) {
-                              setMarkdown(paginated);
-                              setShowPaginationToast(true);
-                              setTimeout(() => setShowPaginationToast(false), 4000);
-                          }
-                        }, 0);
+
+                        const paginated = paginateMarkdown(markdown, cardStyle);
+                        if (paginated !== markdown) {
+                          setMarkdown(paginated);
+                          showPaginationFeedback(
+                            '已手动分页',
+                            '已按当前卡片高度切割内容。可按 Ctrl/Cmd+Z 撤回。'
+                          );
+                        } else {
+                          showPaginationFeedback(
+                            '无需分页',
+                            '当前内容长度适中，暂时不需要插入分页线。'
+                          );
+                        }
                       }}
-                      title="自动分页"
+                      title="立即分页"
                       className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-90 hover:opacity-100 group"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -908,9 +944,18 @@ export const Editor = () => {
               <Check size={14} className="text-white" strokeWidth={3} />
             </div>
             <div className="flex flex-col">
-                <span className="text-sm font-bold">已自动分页</span>
-                <span className="text-[10px] opacity-80">内容过长，已按页面高度自动切割。可用 "---" 手动调整。</span>
+                <span className="text-sm font-bold">{paginationToastText.title}</span>
+                <span className="text-[10px] opacity-80">{paginationToastText.description}</span>
             </div>
+            <button
+              onClick={() => {
+                useStore.temporal.getState().undo();
+                setShowPaginationToast(false);
+              }}
+              className="rounded-full border border-white/15 px-3 py-1 text-[10px] font-semibold opacity-90 transition hover:opacity-100 dark:border-black/10"
+            >
+              撤回
+            </button>
             <button 
                 onClick={() => setShowPaginationToast(false)}
                 className="ml-2 opacity-50 hover:opacity-100 p-1"

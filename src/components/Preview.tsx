@@ -255,8 +255,9 @@ const Card = memo(({
       const number = getHeadingNumber(level);
       return (
         <span
-          className="mr-3 inline-flex items-center rounded-full px-3 py-1 text-[0.62em] font-black tracking-[0.18em] uppercase shadow-[0_12px_28px_-18px_rgba(15,23,42,0.45)]"
+          className="inline-flex shrink-0 items-center justify-center rounded-full px-3 py-1 leading-none text-[0.62em] font-black tabular-nums tracking-[0.08em] shadow-[0_12px_28px_-18px_rgba(15,23,42,0.45)]"
           style={{
+            minWidth: level === 1 ? '3.2em' : 'auto',
             background: `linear-gradient(135deg, ${cardStyle.accentColor} 0%, color-mix(in srgb, ${cardStyle.accentColor} 56%, white) 100%)`,
             color: '#ffffff',
           }}
@@ -275,7 +276,7 @@ const Card = memo(({
           borderBottom: `4px solid ${cardStyle.h1LineColor || cardStyle.accentColor}`,
           ...style
         }}
-        className="mb-4 mt-4 flex items-center font-bold first:mt-0 pb-1"
+        className="mb-4 mt-4 flex items-center gap-3 font-bold first:mt-0 pb-1 overflow-visible"
         {...props}
       >
         {renderHeadingNumber(1)}
@@ -290,7 +291,7 @@ const Card = memo(({
           fontSize: `${cardStyle.h2FontSize}px`,
           ...style
         }}
-        className="mb-4 mt-4 inline-flex items-center rounded-lg px-4 py-1.5 shadow-md first:mt-0"
+        className="mb-4 mt-4 inline-flex items-center gap-3 rounded-lg px-4 py-1.5 shadow-md first:mt-0 overflow-visible"
         {...props}
       >
         {renderHeadingNumber(2)}
@@ -305,7 +306,7 @@ const Card = memo(({
           fontSize: `${cardStyle.h3FontSize}px`,
           ...style
         }}
-        className="mb-4 mt-4 flex items-center border-l-4 pl-3 font-bold first:mt-0"
+        className="mb-4 mt-4 flex items-center gap-3 border-l-4 pl-3 font-bold first:mt-0 overflow-visible"
         {...props}
       >
         {renderHeadingNumber(3)}
