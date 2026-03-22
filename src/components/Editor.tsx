@@ -10,12 +10,13 @@ import { STYLE_TEMPLATES } from '../utils/styleTemplates';
 import { extractPageStyleDirective, splitMarkdownPages, updatePageStyleDirective } from '../utils/pageStyles';
 
 export const Editor = () => {
-  const { markdown, setMarkdown, addCardImage, cardStyle, updateCardStyle, isEditorOpen, setIsEditorOpen } = useStore();
+  const { markdown, setMarkdown, addCardImage, cardStyle, isEditorOpen, setIsEditorOpen, updateCardStyle } = useStore();
   const t = useTranslation();
   const [showPaginationToast, setShowPaginationToast] = useState(false);
   const [activeMenu, setActiveMenu] = useState<'heading' | 'align' | 'list' | null>(null);
   const [activePanel, setActivePanel] = useState<'page-style' | 'whiteboard' | null>(null);
   const [showDrawingDock, setShowDrawingDock] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -27,8 +28,10 @@ export const Editor = () => {
       const paginated = paginateMarkdown(markdown, cardStyle);
       if (paginated !== markdown) {
         setMarkdown(paginated);
-        setShowPaginationToast(true);
-        setTimeout(() => setShowPaginationToast(false), 4000);
+        window.setTimeout(() => {
+          setShowPaginationToast(true);
+          window.setTimeout(() => setShowPaginationToast(false), 4000);
+        }, 0);
       }
     }
     prevAutoHeightRef.current = cardStyle.autoHeight;
@@ -116,7 +119,7 @@ export const Editor = () => {
       return;
     }
 
-    const escapedMarker = marker.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const escapedMarker = marker.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
     let regex;
     if (marker === '**') {
       regex = new RegExp(`^\\*\\*(.*)\\*\\*$`, 's');
@@ -177,7 +180,7 @@ export const Editor = () => {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     
-    let lineStart = markdown.lastIndexOf('\n', start - 1) + 1;
+    const lineStart = markdown.lastIndexOf('\n', start - 1) + 1;
     let lineEnd = markdown.indexOf('\n', end);
     if (lineEnd === -1) lineEnd = markdown.length;
     
@@ -261,7 +264,7 @@ export const Editor = () => {
     const end = textarea.selectionEnd;
     
     // Find the full block (lines)
-    let lineStart = markdown.lastIndexOf('\n', start - 1) + 1;
+    const lineStart = markdown.lastIndexOf('\n', start - 1) + 1;
     let lineEnd = markdown.indexOf('\n', end);
     if (lineEnd === -1) lineEnd = markdown.length;
     
@@ -311,8 +314,7 @@ export const Editor = () => {
   };
 
   const getCurrentPageIndex = () => {
-    const textarea = textareaRef.current;
-    const cursor = textarea ? textarea.selectionStart : markdown.length;
+    const cursor = Math.min(cursorPosition, markdown.length);
     const textBefore = markdown.substring(0, cursor);
     const separators = textBefore.match(/\n\s*---\s*\n|^\s*---\s*$/gm);
     return separators ? separators.length : 0;
@@ -323,6 +325,8 @@ export const Editor = () => {
     const currentPage = pages[getCurrentPageIndex()] || '';
     return extractPageStyleDirective(currentPage).styleId;
   };
+
+  const currentPageStyleId = getCurrentPageStyleId();
 
   const applyPageStyleTemplate = (templateId: string | null) => {
     setMarkdown(updatePageStyleDirective(markdown, getCurrentPageIndex(), templateId));
@@ -661,7 +665,7 @@ export const Editor = () => {
                     <button
                       onClick={() => {
                         if (cardStyle.autoHeight) {
-                            useStore.getState().updateCardStyle({ autoHeight: false, orientation: 'portrait' });
+                            updateCardStyle({ autoHeight: false, orientation: 'portrait' });
                         }
                         
                         setTimeout(() => {
@@ -736,7 +740,7 @@ export const Editor = () => {
                   <div className="mx-1 rounded-2xl border border-black/10 bg-white/70 p-3 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
                     <div className="mb-2 flex items-center justify-between text-[11px] font-semibold opacity-70">
                       <span>当前页主题</span>
-                      <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] dark:bg-white/10">{getCurrentPageStyleId() || '默认样式'}</span>
+                      <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] dark:bg-white/10">{currentPageStyleId || '默认样式'}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -854,7 +858,13 @@ export const Editor = () => {
                 ref={textareaRef}
                 className="flex-1 w-full h-full bg-transparent resize-none focus:outline-none font-mono text-sm leading-relaxed p-4 text-inherit placeholder-inherit/50 custom-scrollbar"
                 value={markdown}
-                onChange={(e) => setMarkdown(e.target.value)}
+                onChange={(e) => {
+                  setMarkdown(e.target.value);
+                  setCursorPosition(e.target.selectionStart);
+                }}
+                onClick={(e) => setCursorPosition(e.currentTarget.selectionStart)}
+                onKeyUp={(e) => setCursorPosition(e.currentTarget.selectionStart)}
+                onSelect={(e) => setCursorPosition(e.currentTarget.selectionStart)}
                 onPaste={handlePaste}
                 placeholder="Type your markdown here..."
                 spellCheck={false}
