@@ -7,15 +7,15 @@ export type StyleTemplate = {
   patch: Partial<CardStyle>;
 };
 
-const skyCoverCSS = `.md2-card-shell {
+const skyCoverCSS = `:card {
   letter-spacing: -0.02em;
 }
 
-.md2-card-shell .prose {
+:card .prose {
   color: #05070b;
 }
 
-.md2-card-shell .prose h1 {
+:card .prose h1 {
   font-size: clamp(50px, 7vw, 88px) !important;
   line-height: 1.03 !important;
   font-weight: 900 !important;
@@ -24,7 +24,7 @@ const skyCoverCSS = `.md2-card-shell {
   padding: 0 !important;
 }
 
-.md2-card-shell .prose h2 {
+:card .prose h2 {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
@@ -39,24 +39,24 @@ const skyCoverCSS = `.md2-card-shell {
   box-shadow: none !important;
 }
 
-.md2-card-shell .prose p,
-.md2-card-shell .prose li,
-.md2-card-shell .prose blockquote {
+:card .prose p,
+:card .prose li,
+:card .prose blockquote {
   font-size: 1.02em;
   line-height: 1.7;
 }
 
-.md2-card-shell .markdown-image,
-.md2-card-shell .md2-live-embed {
+:card .markdown-image,
+:embed {
   border-radius: 30px;
 }
 `;
 
-const blueprintCSS = `.md2-card-shell {
+const blueprintCSS = `:card {
   background-image: radial-gradient(circle at top, rgba(255,255,255,0.6), transparent 40%);
 }
 
-.md2-card-shell .prose h1 {
+:card .prose h1 {
   margin-bottom: 18px !important;
   border-bottom: none !important;
   padding-bottom: 0 !important;
@@ -65,7 +65,7 @@ const blueprintCSS = `.md2-card-shell {
   letter-spacing: 0.02em;
 }
 
-.md2-card-shell .prose h2 {
+:card .prose h2 {
   display: inline-block !important;
   background: rgba(14, 165, 233, 0.12) !important;
   color: #0f172a !important;
@@ -73,7 +73,7 @@ const blueprintCSS = `.md2-card-shell {
   box-shadow: none !important;
 }
 
-.md2-card-shell .prose table {
+:card .prose table {
   border-radius: 20px;
   overflow: hidden;
 }
@@ -134,7 +134,7 @@ export const STYLE_TEMPLATES: StyleTemplate[] = [
   {
     id: 'blueprint-board',
     name: '白板蓝图',
-    description: '适合配合 Excalidraw / Draw.io 的轻蓝白板视觉。',
+    description: '适合配合 Excalidraw 的轻蓝白板视觉。',
     patch: {
       enableBackground: true,
       backgroundType: 'gradient',

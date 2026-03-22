@@ -98,12 +98,12 @@ export const PresetCard = ({
   };
 
   return (
-    <div className="md2-card-shell relative shadow-2xl overflow-hidden flex flex-col flex-shrink-0" style={outerStyle}>
+    <div className="md2-card-shell relative shadow-2xl overflow-hidden flex flex-col flex-shrink-0" style={outerStyle} data-preset-scope={`preset-${index}`}>
       {renderOuterBackground()}
 
       <div className="relative w-full h-full flex flex-col overflow-hidden" style={innerStyle}>
         {style.customCSS && (
-          <style>{style.customCSS.replace(/:card\b/g, '.md2-card-shell').replace(/:embed\b/g, '.md2-live-embed')}</style>
+          <style>{style.customCSS.replace(/:card\b/g, `.md2-card-shell[data-preset-scope="preset-${index}"]`).replace(/:embed\b/g, `.md2-card-shell[data-preset-scope="preset-${index}"] .md2-live-embed`)}</style>
         )}
         {renderInnerBackground()}
 

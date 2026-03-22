@@ -166,6 +166,14 @@ export const TopBar = () => {
   };
 
   const [isExporting, setIsExporting] = useState(false);
+
+  const setExportSnapshotMode = (enabled: boolean) => {
+    if (enabled) {
+      document.body.setAttribute('data-md2-exporting', 'true');
+    } else {
+      document.body.removeAttribute('data-md2-exporting');
+    }
+  };
   const [progress, setProgress] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [previewSize, setPreviewSize] = useState<{ single: string, total: string }>({ single: '-', total: '-' });
@@ -189,12 +197,17 @@ export const TopBar = () => {
         };
         
         let blob;
-        if (format === 'png') {
-           const dataUrl = await toPng(firstCard, options);
-           blob = await (await fetch(dataUrl)).blob();
-        } else {
-           const dataUrl = await toJpeg(firstCard, { ...options, quality: 0.9 });
-           blob = await (await fetch(dataUrl)).blob();
+        setExportSnapshotMode(true);
+        try {
+          if (format === 'png') {
+             const dataUrl = await toPng(firstCard, options);
+             blob = await (await fetch(dataUrl)).blob();
+          } else {
+             const dataUrl = await toJpeg(firstCard, { ...options, quality: 0.9 });
+             blob = await (await fetch(dataUrl)).blob();
+          }
+        } finally {
+          setExportSnapshotMode(false);
         }
 
         const singleSize = blob.size / 1024 / 1024; // MB
@@ -339,10 +352,15 @@ export const TopBar = () => {
                     skipAutoScale: true
                 };
 
-                if (format === 'png') {
-                    dataUrl = await toPng(card, currentOptions);
-                } else {
-                    dataUrl = await toJpeg(card, { ...currentOptions, quality: 0.9 });
+                setExportSnapshotMode(true);
+                try {
+                  if (format === 'png') {
+                      dataUrl = await toPng(card, currentOptions);
+                  } else {
+                      dataUrl = await toJpeg(card, { ...currentOptions, quality: 0.9 });
+                  }
+                } finally {
+                  setExportSnapshotMode(false);
                 }
                 const res = await fetch(dataUrl);
                 return await res.blob();

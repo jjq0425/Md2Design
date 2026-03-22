@@ -1034,6 +1034,21 @@ export const Sidebar = () => {
                     <label className="text-xs font-medium opacity-70 mb-2 block">{t.headingScale}</label>
                     <DraggableNumberInput value={cardStyle.headingScale} min={0.5} max={2.0} step={0.1} onChange={(val) => updateCardStyle({ headingScale: val })} icon={<ParameterIcon type="fontSize" />} />
                   </div>
+
+                  <div className="mt-4 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-medium opacity-80">标题自动编号</div>
+                        <div className="mt-1 text-[10px] leading-relaxed opacity-55">为 H1 / H2 / H3 自动生成层级编号，并用强调徽标展示。</div>
+                      </div>
+                      <button
+                        onClick={() => updateCardStyle({ headingNumbering: { ...(cardStyle.headingNumbering || {}), enabled: !cardStyle.headingNumbering?.enabled } })}
+                        className={`w-10 h-5 rounded-full transition-colors relative ${cardStyle.headingNumbering?.enabled ? 'bg-slate-900 dark:bg-white/90' : 'bg-black/10 dark:bg-white/10'}`}
+                      >
+                        <div className={`w-3 h-3 rounded-full bg-white dark:bg-black/80 absolute top-1 transition-all ${cardStyle.headingNumbering?.enabled ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
                 </AdvancedToggle>
               </SidebarSection>
 
@@ -1180,7 +1195,7 @@ export const Sidebar = () => {
                   placeholder=":card { ... }\n:card .prose h1 { ... }"
                   className="w-full h-32 bg-black/5 dark:bg-white/5 p-3 rounded text-xs font-mono resize-none focus:outline-none focus:ring-1 ring-black/20 dark:ring-white/20 border border-black/10 dark:border-white/10 placeholder-black/30 dark:placeholder-white/20"
                 />
-                <p className="mt-2 text-[10px] leading-relaxed opacity-55">可使用 <code>:card</code> 作为卡片根节点选择器，<code>:embed</code> 作为 Excalidraw / Draw.io 嵌入容器选择器。</p>
+                <p className="mt-2 text-[10px] leading-relaxed opacity-55">可使用 <code>:card</code> 作为卡片根节点选择器，<code>:embed</code> 作为 Excalidraw 嵌入容器选择器。</p>
               </SidebarSection>
             </div>
           </motion.div>

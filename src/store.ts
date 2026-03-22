@@ -124,6 +124,10 @@ export type CardStyle = {
   calloutPadding: number;
   strikethroughColor: string;
 
+  headingNumbering: {
+    enabled: boolean;
+  };
+
   // Shadow
   shadowEnabled: boolean;
   shadow: string; // Computed
@@ -351,6 +355,9 @@ const INITIAL_CARD_STYLE: CardStyle = {
   calloutRadius: 20,
   calloutPadding: 18,
   strikethroughColor: '#000000',
+  headingNumbering: {
+    enabled: false,
+  },
   shadowEnabled: false,
   shadow: 'none',
   shadowConfig: {
@@ -681,6 +688,7 @@ export const useStore = create<AppState>()(
               ...persistedState.cardStyle,
               watermark: persistedState.cardStyle.watermark ?? INITIAL_CARD_STYLE.watermark,
               pageNumber: persistedState.cardStyle.pageNumber ?? INITIAL_CARD_STYLE.pageNumber,
+              headingNumbering: persistedState.cardStyle.headingNumbering ?? INITIAL_CARD_STYLE.headingNumbering,
             };
           }
         }
