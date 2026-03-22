@@ -10,6 +10,56 @@ import { motion } from 'framer-motion';
 import { Rnd } from 'react-rnd';
 import { Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square } from 'lucide-react';
 import { preprocessMarkdown, extractCalloutMeta } from '../utils/markdownEnhancer';
+import { LIVE_EMBED_PRESETS, isSafeEmbedUrl, buildLiveEmbedPosterDataUrl } from '../utils/liveEmbeds';
+import { extractPageStyleDirective, resolvePageCardStyle } from '../utils/pageStyles';
+
+const LiveEmbedCard = ({
+  src,
+  title,
+  height,
+}: {
+  src?: string;
+  title?: string;
+  height?: number;
+}) => {
+  const preset = LIVE_EMBED_PRESETS.excalidraw;
+  const safeSrc = src && isSafeEmbedUrl(src) ? src : preset.previewUrl;
+  const safeHeight = Math.max(260, Math.min(height || preset.defaultHeight, 960));
+
+  return (
+    <div className="md2-live-embed group my-5 overflow-hidden rounded-[28px] border border-sky-200/70 bg-white/80 shadow-[0_24px_60px_-34px_rgba(14,165,233,0.38)]">
+      <div className="flex items-center justify-between gap-3 border-b border-sky-100/90 bg-linear-to-r from-sky-50 to-blue-50 px-4 py-3 text-xs font-semibold text-slate-700">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
+          <span>{title || preset.defaultTitle}</span>
+        </div>
+        <a
+          href={safeSrc}
+          target="_blank"
+          rel="noreferrer"
+          className="pointer-events-auto rounded-full bg-slate-900 px-3 py-1 text-[11px] font-medium text-white no-underline transition hover:bg-sky-600"
+        >
+          打开白板
+        </a>
+      </div>
+      <img
+        src={buildLiveEmbedPosterDataUrl(title || preset.defaultTitle, safeSrc)}
+        alt={title || preset.defaultTitle}
+        className="md2-export-fallback hidden h-full w-full object-cover"
+        style={{ height: `${safeHeight}px` }}
+      />
+      <iframe
+        src={safeSrc}
+        title={title || preset.defaultTitle}
+        className="md2-live-frame block w-full border-0 bg-white"
+        style={{ height: `${safeHeight}px` }}
+        loading="lazy"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allow="clipboard-read; clipboard-write; fullscreen"
+      />
+    </div>
+  );
+};
 
 const Card = memo(({
   content,
@@ -18,7 +68,8 @@ const Card = memo(({
   width,
   height,
   selectedImageId,
-  setSelectedImageId
+  setSelectedImageId,
+  resolvedStyle
 }: {
   content: string,
   index: number,
@@ -26,9 +77,10 @@ const Card = memo(({
   width: number,
   height: number,
   selectedImageId: string | null,
-  setSelectedImageId: (id: string | null) => void
+  setSelectedImageId: (id: string | null) => void,
+  resolvedStyle: ReturnType<typeof useStore.getState>['cardStyle']
 }) => {
-  const cardStyle = useStore(state => state.cardStyle);
+  const cardStyle = resolvedStyle;
   const cardImages = useStore(state => state.cardImages);
   const updateCardImage = useStore(state => state.updateCardImage);
   const removeCardImage = useStore(state => state.removeCardImage);
@@ -177,7 +229,45 @@ const Card = memo(({
      }
   };
 
-  const components = useMemo(() => ({
+  const components = useMemo(() => {
+    const headingCounters = { h1: 0, h2: 0, h3: 0 };
+
+    const getHeadingNumber = (level: 1 | 2 | 3) => {
+      if (level === 1) {
+        headingCounters.h1 += 1;
+        headingCounters.h2 = 0;
+        headingCounters.h3 = 0;
+        return `${headingCounters.h1}`.padStart(2, '0');
+      }
+
+      if (level === 2) {
+        headingCounters.h2 += 1;
+        headingCounters.h3 = 0;
+        return `${headingCounters.h1 || 1}.${headingCounters.h2}`;
+      }
+
+      headingCounters.h3 += 1;
+      return `${headingCounters.h1 || 1}.${headingCounters.h2 || 1}.${headingCounters.h3}`;
+    };
+
+    const renderHeadingNumber = (level: 1 | 2 | 3) => {
+      if (!cardStyle.headingNumbering?.enabled) return null;
+      const number = getHeadingNumber(level);
+      return (
+        <span
+          className="inline-flex shrink-0 items-center justify-center rounded-full px-3 py-1 leading-none text-[0.62em] font-black tabular-nums tracking-[0.08em] shadow-[0_12px_28px_-18px_rgba(15,23,42,0.45)]"
+          style={{
+            minWidth: level === 1 ? '3.2em' : 'auto',
+            background: `linear-gradient(135deg, ${cardStyle.accentColor} 0%, color-mix(in srgb, ${cardStyle.accentColor} 56%, white) 100%)`,
+            color: '#ffffff',
+          }}
+        >
+          {number}
+        </span>
+      );
+    };
+
+    return ({
     h1: ({ node: _node, style, ...props }: any) => (
       <h1
         style={{
@@ -186,9 +276,12 @@ const Card = memo(({
           borderBottom: `4px solid ${cardStyle.h1LineColor || cardStyle.accentColor}`,
           ...style
         }}
-        className="font-bold mb-4 mt-4 first:mt-0 pb-1"
+        className="mb-4 mt-4 flex items-center gap-3 font-bold first:mt-0 pb-1 overflow-visible"
         {...props}
-      />
+      >
+        {renderHeadingNumber(1)}
+        <span>{props.children}</span>
+      </h1>
     ),
     h2: ({ node: _node, style, ...props }: any) => (
       <h2
@@ -198,9 +291,12 @@ const Card = memo(({
           fontSize: `${cardStyle.h2FontSize}px`,
           ...style
         }}
-        className="font-bold px-4 py-1.5 shadow-md rounded-lg mb-4 mt-4 first:mt-0 inline-block"
+        className="mb-4 mt-4 inline-flex items-center gap-3 rounded-lg px-4 py-1.5 shadow-md first:mt-0 overflow-visible"
         {...props}
-      />
+      >
+        {renderHeadingNumber(2)}
+        <span>{props.children}</span>
+      </h2>
     ),
     h3: ({ node: _node, style, ...props }: any) => (
       <h3
@@ -210,9 +306,12 @@ const Card = memo(({
           fontSize: `${cardStyle.h3FontSize}px`,
           ...style
         }}
-        className="font-bold mb-4 mt-4 first:mt-0 pl-3 border-l-4"
+        className="mb-4 mt-4 flex items-center gap-3 border-l-4 pl-3 font-bold first:mt-0 overflow-visible"
         {...props}
-      />
+      >
+        {renderHeadingNumber(3)}
+        <span>{props.children}</span>
+      </h3>
     ),
     h4: ({ node: _node, style, ...props }: any) => (
        <h4
@@ -271,6 +370,16 @@ const Card = memo(({
       );
     },
     div: ({ node: _node, style, children, ...props }: any) => {
+       if (props['data-live-embed']) {
+         return (
+           <LiveEmbedCard
+             src={props['data-src']}
+             title={props['data-title']}
+             height={Number(props['data-height'])}
+           />
+         );
+       }
+
        const isAlignment = style?.textAlign;
        return (
          <div
@@ -537,7 +646,8 @@ const Card = memo(({
         </code>
       );
     }
-  }), [cardStyle]);
+    });
+  }, [cardStyle]);
 
   return (
     <div
@@ -562,9 +672,10 @@ const Card = memo(({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
-          className={`relative flex flex-col flex-shrink-0 group select-none overflow-hidden ${isResetting && !draggingId ? 'transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)]' : ''}`}
+          className={`md2-card-shell relative flex flex-col flex-shrink-0 group select-none overflow-hidden ${isResetting && !draggingId ? 'transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)]' : ''}`}
           style={outerStyle}
           id={`card-${index}`}
+          data-page-scope={`card-${index}`}
           onMouseDown={(e) => {
             // Only deselect if we click exactly on the card background, not on images or toolbars
             if (e.target === e.currentTarget) {
@@ -573,6 +684,9 @@ const Card = memo(({
           }}
         >
           {renderOuterBackground()}
+          {cardStyle.customCSS && (
+            <style>{cardStyle.customCSS.replace(/:card\b/g, `.md2-card-shell[data-page-scope="card-${index}"]`).replace(/:embed\b/g, `.md2-card-shell[data-page-scope="card-${index}"] .md2-live-embed`)}</style>
+          )}
           <div className="pointer-events-none absolute inset-0 rounded-[inherit] border border-white/40 dark:border-white/10 opacity-80" />
           <div className="pointer-events-none absolute inset-x-6 top-0 h-24 rounded-full bg-white/40 blur-3xl dark:bg-white/10" />
           <div className="pointer-events-none absolute inset-x-10 bottom-[-18%] h-32 rounded-full bg-sky-400/10 blur-3xl dark:bg-sky-300/10" />
@@ -958,6 +1072,45 @@ export const Preview = () => {
   }, [previewZoom, autoScale, setPreviewZoom]);
 
   useEffect(() => {
+    const handleWindowPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.closest('textarea, input, [contenteditable="true"]'))) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (!item.type.startsWith('image/')) continue;
+
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result;
+          if (typeof result !== 'string') return;
+
+          const state = useStore.getState();
+          const imageId = crypto.randomUUID();
+          const { width: cardWidth } = getCardDimensions(state.cardStyle);
+          state.addCardImage(state.activeCardIndex, result, imageId);
+          state.updateCardImage(state.activeCardIndex, imageId, {
+            x: Math.max(24, cardWidth * 0.15),
+            y: 48,
+          });
+          setSelectedImageId(imageId);
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+    };
+
+    window.addEventListener('paste', handleWindowPaste);
+    return () => window.removeEventListener('paste', handleWindowPaste);
+  }, []);
+
+  useEffect(() => {
     const handleScroll = () => {
       if (scrollRef.current) {
         setIsScrolled(scrollRef.current.scrollTop > 20);
@@ -981,9 +1134,17 @@ export const Preview = () => {
     return () => el?.removeEventListener('scroll', handleScroll);
   }, [setIsScrolled, setActiveCardIndex]);
 
-  const pages = cardStyle.layoutMode === 'long'
+  const pages = (cardStyle.layoutMode === 'long'
     ? [debouncedMarkdown]
-    : debouncedMarkdown.split(/\n\s*---\s*\n|^\s*---\s*$/m).filter(page => page.trim() !== '');
+    : debouncedMarkdown.split(/\n\s*---\s*\n|^\s*---\s*$/m).filter(page => page.trim() !== ''))
+    .map((page) => {
+      const parsed = extractPageStyleDirective(page);
+      return {
+        content: parsed.content,
+        styleId: parsed.styleId,
+        resolvedStyle: resolvePageCardStyle(cardStyle, parsed.styleId),
+      };
+    });
 
   const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
   const paddingLeft = (isDesktop && isEditorOpen) ? '448px' : '2rem';
@@ -1001,16 +1162,17 @@ export const Preview = () => {
         }
       }}
     >
-      {pages.map((pageContent, index) => (
+      {pages.map((page, index) => (
         <Card
           key={index}
-          content={pageContent}
+          content={page.content}
           index={index}
           scale={scale}
           width={width}
           height={height}
           selectedImageId={selectedImageId}
           setSelectedImageId={setSelectedImageId}
+          resolvedStyle={page.resolvedStyle}
         />
       ))}
     </div>

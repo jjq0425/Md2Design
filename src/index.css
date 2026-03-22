@@ -257,6 +257,23 @@
     -webkit-box-decoration-break: clone;
   }
 
+
+  .md2-live-frame {
+    display: block;
+  }
+
+  .md2-export-fallback {
+    display: none;
+  }
+
+  body[data-md2-exporting='true'] .md2-live-frame {
+    display: none !important;
+  }
+
+  body[data-md2-exporting='true'] .md2-export-fallback {
+    display: block !important;
+  }
+
   .md2-handdrawn-underline {
     text-decoration: none;
   }
