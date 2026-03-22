@@ -10,7 +10,7 @@ import { STYLE_TEMPLATES } from '../utils/styleTemplates';
 import { extractPageStyleDirective, splitMarkdownPages, updatePageStyleDirective } from '../utils/pageStyles';
 
 export const Editor = () => {
-  const { markdown, setMarkdown, addCardImage, cardStyle, isEditorOpen, setIsEditorOpen } = useStore();
+  const { markdown, setMarkdown, addCardImage, cardStyle, updateCardStyle, isEditorOpen, setIsEditorOpen } = useStore();
   const t = useTranslation();
   const [showPaginationToast, setShowPaginationToast] = useState(false);
   const [activeMenu, setActiveMenu] = useState<'heading' | 'align' | 'list' | null>(null);
