@@ -29,6 +29,19 @@ export type CardImage = {
   };
 };
 
+export type TextBlockLayout = {
+  x: number;
+  y: number;
+  width: number;
+  fontSize?: number;
+  fontWeight?: number;
+  lineHeight?: number;
+  color?: string;
+  textAlign?: 'left' | 'center' | 'right';
+  showNumber?: boolean;
+  numberLabel?: string;
+};
+
 export type CardStyle = {
   fontFamily: string;
   backgroundColor: string;
@@ -187,6 +200,10 @@ interface AppState {
   addCardImage: (cardIndex: number, src: string, id?: string, spacerId?: string) => void;
   updateCardImage: (cardIndex: number, imageId: string, updates: Partial<CardImage>) => void;
   removeCardImage: (cardIndex: number, imageId: string) => void;
+
+  cardTextLayouts: Record<number, Record<string, TextBlockLayout>>;
+  updateCardTextLayout: (cardIndex: number, blockId: string, updates: Partial<TextBlockLayout>) => void;
+  setCardTextLayouts: (layouts: Record<number, Record<string, TextBlockLayout>>) => void;
   
   cardStyle: CardStyle;
   previousCardStyle: CardStyle | null;
@@ -200,6 +217,9 @@ interface AppState {
 
   previewZoom: number; // 0 means auto-fit
   setPreviewZoom: (zoom: number) => void;
+
+  blockEditMode: boolean;
+  setBlockEditMode: (enabled: boolean) => void;
 
   presets: StylePreset[];
   savePreset: (name: string) => void;
@@ -509,6 +529,21 @@ export const useStore = create<AppState>()(
     };
   }),
 
+  cardTextLayouts: {},
+  updateCardTextLayout: (cardIndex, blockId, updates) => set((state) => ({
+    cardTextLayouts: {
+      ...state.cardTextLayouts,
+      [cardIndex]: {
+        ...(state.cardTextLayouts[cardIndex] || {}),
+        [blockId]: {
+          ...(state.cardTextLayouts[cardIndex]?.[blockId] || { x: 0, y: 0, width: 0 }),
+          ...updates,
+        },
+      },
+    },
+  })),
+  setCardTextLayouts: (layouts) => set({ cardTextLayouts: layouts }),
+
   cardStyle: INITIAL_CARD_STYLE,
   previousCardStyle: null,
   updateCardStyle: (style) => set((state) => {
@@ -568,6 +603,9 @@ export const useStore = create<AppState>()(
   previewZoom: 0,
   setPreviewZoom: (previewZoom) => set({ previewZoom }),
 
+  blockEditMode: false,
+  setBlockEditMode: (blockEditMode) => set({ blockEditMode }),
+
   presets: [],
   savePreset: (name) => set((state) => ({
     presets: [
@@ -604,7 +642,7 @@ export const useStore = create<AppState>()(
     {
       name: 'md2card-storage',
       storage: createJSONStorage(() => localStorage),
-      version: 6,
+      version: 8,
       migrate: (persistedState: any, version: number) => {
         if (!persistedState) return persistedState;
 
@@ -617,6 +655,14 @@ export const useStore = create<AppState>()(
             layoutMode = 'landscape';
           }
           persistedState.cardStyle.layoutMode = layoutMode;
+        }
+
+        if (version <= 7) {
+          persistedState.blockEditMode = persistedState.blockEditMode ?? false;
+        }
+
+        if (version <= 6) {
+          persistedState.cardTextLayouts = persistedState.cardTextLayouts ?? {};
         }
 
         if (version <= 5) {
@@ -700,6 +746,8 @@ export const useStore = create<AppState>()(
         markdown: state.markdown,
         cardStyle: state.cardStyle,
         cardImages: state.cardImages,
+        cardTextLayouts: state.cardTextLayouts,
+        blockEditMode: state.blockEditMode,
         activeCardIndex: state.activeCardIndex,
         presets: state.presets,
         isEditorOpen: state.isEditorOpen,
@@ -719,7 +767,9 @@ export const useStore = create<AppState>()(
       // Configure Zundo: only track changes to markdown and cardImages
       partialize: (state) => ({ 
         markdown: state.markdown,
-        cardImages: state.cardImages 
+        cardImages: state.cardImages,
+        cardTextLayouts: state.cardTextLayouts,
+        blockEditMode: state.blockEditMode 
       }),
       limit: 100, // Limit history size
     }

@@ -484,7 +484,7 @@ export const Editor = () => {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -400, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute left-6 top-20 bottom-6 w-[440px] glass-panel rounded-2xl flex flex-col z-40 select-text"
+            className="absolute left-6 top-20 bottom-6 w-[440px] glass-panel rounded-2xl flex flex-col z-40 select-text overflow-visible"
           >
             <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10">
               <div className="flex items-center gap-2 text-sm font-semibold opacity-80">
@@ -514,7 +514,7 @@ export const Editor = () => {
               }}
             />
 
-            <div className="flex-shrink-0 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-2.5 space-y-2">
+            <div className="relative z-[90] flex-shrink-0 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-2.5 space-y-2 overflow-visible">
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
                   {/* Basic Styles */}
                   <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5">
@@ -533,7 +533,7 @@ export const Editor = () => {
                   </div>
 
                   {/* Heading Dropdown */}
-                  <div className="relative">
+                  <div className="relative z-[100]">
                     <button 
                       onMouseDown={(e) => { e.preventDefault(); setActiveMenu(activeMenu === 'heading' ? null : 'heading'); }}
                       title="标题"
@@ -549,7 +549,7 @@ export const Editor = () => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-black/10 dark:border-white/10 p-1 flex flex-col gap-1"
+                          className="absolute left-0 top-full mt-1 z-[120] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-black/10 dark:border-white/10 p-1 flex flex-col gap-1"
                         >
                           <button onMouseDown={(e) => { e.preventDefault(); toggleBlockStyle('#'); }} className="flex items-center gap-2 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/10 rounded text-sm whitespace-nowrap">
                             <Heading1 size={14} /> 标题 1
@@ -569,7 +569,7 @@ export const Editor = () => {
                   </div>
 
                   {/* Alignment Dropdown */}
-                  <div className="relative">
+                  <div className="relative z-[100]">
                     <button 
                       onMouseDown={(e) => { e.preventDefault(); setActiveMenu(activeMenu === 'align' ? null : 'align'); }}
                       title="对齐方式"
@@ -585,7 +585,7 @@ export const Editor = () => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-black/10 dark:border-white/10 p-1 flex flex-col gap-1"
+                          className="absolute left-0 top-full mt-1 z-[120] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-black/10 dark:border-white/10 p-1 flex flex-col gap-1"
                         >
                           <button onMouseDown={(e) => { e.preventDefault(); toggleAlignment('left'); }} className="flex items-center gap-2 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/10 rounded text-sm whitespace-nowrap">
                             <AlignLeft size={14} /> 左对齐
@@ -602,7 +602,7 @@ export const Editor = () => {
                   </div>
 
                   {/* Lists Dropdown */}
-                  <div className="relative">
+                  <div className="relative z-[100]">
                     <button 
                       onMouseDown={(e) => { e.preventDefault(); setActiveMenu(activeMenu === 'list' ? null : 'list'); }}
                       title="列表"
@@ -618,7 +618,7 @@ export const Editor = () => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-black/10 dark:border-white/10 p-1 flex flex-col gap-1"
+                          className="absolute left-0 top-full mt-1 z-[120] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-black/10 dark:border-white/10 p-1 flex flex-col gap-1"
                         >
                           <button onMouseDown={(e) => { e.preventDefault(); toggleBlockStyle('-'); }} className="flex items-center gap-2 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/10 rounded text-sm whitespace-nowrap">
                             <List size={14} /> 无序列表
