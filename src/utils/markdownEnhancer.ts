@@ -18,6 +18,8 @@ const CALLOUT_TYPE_MAP: Record<string, string> = {
   check: 'check',
   todo: 'check',
   feature: 'idea',
+  tag: 'tag',
+  tags: 'tag',
 };
 
 const ADVANCED_COLOR_MAP: Record<string, string> = {
@@ -109,6 +111,11 @@ const transformInlineSyntax = (segment: string) => {
   result = result.replace(/\[bg=([^\]]+)]([\s\S]+?)\[\/bg]/gi, (_match, color, content) => {
     const resolved = escapeHtmlAttribute(resolveAdvancedColor(color));
     return `<span data-bg="${resolved}">${content}</span>`;
+  });
+
+  result = result.replace(/\[tag(?:=([^\]]+))?]([\s\S]+?)\[\/tag]/gi, (_match, color, content) => {
+    const resolved = escapeHtmlAttribute(resolveAdvancedColor(color || '#7c3aed'));
+    return `<span data-tag="true" data-color="${resolved}" data-bg="color-mix(in srgb, ${resolved} 15%, white)">${content}</span>`;
   });
 
   result = result.replace(/\+\+([^+][\s\S]*?)\+\+/g, '<span data-underline="handdrawn">$1</span>');

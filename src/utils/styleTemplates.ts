@@ -16,7 +16,7 @@ const skyCoverCSS = `:card {
 }
 
 :card .prose h1 {
-  font-size: clamp(50px, 7vw, 88px) !important;
+  font-size: var(--md2-h1-size, clamp(50px, 7vw, 88px)) !important;
   line-height: 1.03 !important;
   font-weight: 900 !important;
   margin: 0 0 26px !important;
@@ -34,7 +34,7 @@ const skyCoverCSS = `:card {
   border-radius: 999px !important;
   background: linear-gradient(180deg, #ff9038 0%, #ff6f1a 100%) !important;
   color: #111111 !important;
-  font-size: clamp(26px, 3.2vw, 46px) !important;
+  font-size: var(--md2-h2-size, clamp(26px, 3.2vw, 46px)) !important;
   font-weight: 900 !important;
   box-shadow: none !important;
 }

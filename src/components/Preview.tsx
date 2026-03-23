@@ -10,7 +10,7 @@ import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import { motion } from 'framer-motion';
 import { Rnd } from 'react-rnd';
-import { AlignCenter, AlignLeft, AlignRight, Hash, Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square, Palette, Type, SlidersHorizontal, ChevronDown, PenSquare } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Hash, Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square, Palette, Type, SlidersHorizontal, ChevronDown, PenSquare, Sliders, Globe2, FileText } from 'lucide-react';
 import { preprocessMarkdown, extractCalloutMeta } from '../utils/markdownEnhancer';
 import { LIVE_EMBED_PRESETS, isSafeEmbedUrl, buildLiveEmbedPosterDataUrl } from '../utils/liveEmbeds';
 import { extractPageStyleDirective, resolvePageCardStyle } from '../utils/pageStyles';
@@ -19,6 +19,19 @@ import { parseMarkdownBlocks } from '../utils/markdownBlocks';
 const BLOCK_GAP = 18;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const getImageShadow = (image: ReturnType<typeof useStore.getState>['cardImages'][number][number]) => {
+  if (!image?.shadowEnabled) return 'none';
+  const { x, y, blur, spread, color, opacity } = image.shadow;
+  const hex = color.startsWith('#') ? color : '#0f172a';
+  const normalized = hex.length === 4
+    ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+    : hex;
+  const r = Number.parseInt(normalized.slice(1, 3), 16) || 15;
+  const g = Number.parseInt(normalized.slice(3, 5), 16) || 23;
+  const b = Number.parseInt(normalized.slice(5, 7), 16) || 42;
+  return `${x}px ${y}px ${blur}px ${spread}px rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
 
 const LiveEmbedCard = ({
   src,
@@ -134,6 +147,82 @@ const ToolbarNumberField = ({
       className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm font-mono outline-none dark:border-white/10"
     />
   </label>
+);
+
+const ImageStylePanel = ({
+  image,
+  onChange,
+}: {
+  image: ReturnType<typeof useStore.getState>['cardImages'][number][number];
+  onChange: (updates: Record<string, unknown>) => void;
+}) => (
+  <div className="absolute left-1/2 top-full z-[70] mt-3 w-[280px] -translate-x-1/2 rounded-2xl border border-black/10 bg-white/95 p-3 shadow-[0_24px_70px_-36px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95">
+    <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold opacity-70">
+      <Sliders size={13} />
+      图片样式
+    </div>
+    <div className="grid grid-cols-2 gap-2">
+      <ToolbarNumberField
+        label="圆角"
+        value={image.borderRadius}
+        min={0}
+        max={80}
+        suffix="px"
+        onChange={(value) => onChange({ borderRadius: value })}
+      />
+      <ToolbarNumberField
+        label="边框"
+        value={image.borderWidth}
+        min={0}
+        max={20}
+        suffix="px"
+        onChange={(value) => onChange({ borderWidth: value })}
+      />
+      <label className="rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
+        <div className="mb-1 flex items-center gap-1 font-semibold opacity-60"><Palette size={12} /> 边框色</div>
+        <input
+          type="color"
+          value={image.borderColor}
+          onChange={(e) => onChange({ borderColor: e.target.value })}
+          className="h-10 w-full rounded-lg border border-black/10 bg-transparent dark:border-white/10"
+        />
+      </label>
+      <label className="rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
+        <div className="mb-2 flex items-center justify-between font-semibold opacity-60">
+          <span>阴影</span>
+          <button
+            type="button"
+            onClick={() => onChange({ shadowEnabled: !image.shadowEnabled })}
+            className={`relative h-5 w-9 rounded-full transition ${image.shadowEnabled ? 'bg-sky-500' : 'bg-slate-200 dark:bg-white/10'}`}
+          >
+            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${image.shadowEnabled ? 'left-[18px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+        <input
+          type="color"
+          value={image.shadow.color}
+          onChange={(e) => onChange({ shadow: { ...image.shadow, color: e.target.value } })}
+          className="h-10 w-full rounded-lg border border-black/10 bg-transparent dark:border-white/10"
+        />
+      </label>
+      <ToolbarNumberField
+        label="阴影模糊"
+        value={image.shadow.blur}
+        min={0}
+        max={80}
+        suffix="px"
+        onChange={(value) => onChange({ shadow: { ...image.shadow, blur: value } })}
+      />
+      <ToolbarNumberField
+        label="阴影透明"
+        value={Number(image.shadow.opacity.toFixed(2))}
+        min={0}
+        max={1}
+        step={0.05}
+        onChange={(value) => onChange({ shadow: { ...image.shadow, opacity: Number(value.toFixed(2)) } })}
+      />
+    </div>
+  </div>
 );
 
 type LayoutScope = 'block' | 'page' | 'all';
@@ -395,6 +484,10 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
     );
   };
 
+  const inheritInlineColor = (style?: CSSProperties) => ({
+    color: style?.color || 'inherit',
+  });
+
   return {
     h1: ({ node: _node, style, ...props }: any) => (
       <h1
@@ -459,10 +552,10 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
     h6: ({ node: _node, style, ...props }: any) => (
       <h6 style={{ color: blockColor || cardStyle.textColor, fontSize: `${blockFontSize || cardStyle.headingScale * 14}px`, fontWeight: blockWeight || 700, lineHeight: blockLineHeight, textAlign: blockAlign, ...style }} className="font-bold" {...props} />
     ),
-    strong: ({ node: _node, style, ...props }: any) => <strong style={{ color: blockColor || cardStyle.textColor, fontWeight: Math.max(blockWeight || 700, 700), ...style }} {...props} />,
-    em: ({ node: _node, style, ...props }: any) => <em style={{ color: blockColor || cardStyle.textColor, ...style }} {...props} />,
-    u: ({ node: _node, style, ...props }: any) => <u style={{ color: blockColor || cardStyle.underlineColor || cardStyle.accentColor, ...style }} {...props} />,
-    del: ({ node: _node, style, ...props }: any) => <del style={{ color: blockColor || cardStyle.strikethroughColor || cardStyle.textColor, opacity: 0.7, ...style }} {...props} />,
+    strong: ({ node: _node, style, ...props }: any) => <strong style={{ ...inheritInlineColor(style), fontWeight: Math.max(blockWeight || 700, 700), ...style }} {...props} />,
+    em: ({ node: _node, style, ...props }: any) => <em style={{ ...inheritInlineColor(style), ...style }} {...props} />,
+    u: ({ node: _node, style, ...props }: any) => <u style={{ ...inheritInlineColor(style), textDecorationColor: cardStyle.underlineColor || cardStyle.accentColor, ...style }} {...props} />,
+    del: ({ node: _node, style, ...props }: any) => <del style={{ ...inheritInlineColor(style), textDecorationColor: cardStyle.strikethroughColor || cardStyle.textColor, opacity: 0.7, ...style }} {...props} />,
     p: ({ node: _node, children, style, ...props }: any) => {
       const isZwnj = Array.isArray(children) ? children.length === 1 && children[0] === '\u200C' : children === '\u200C';
       if (isZwnj) return null;
@@ -490,7 +583,23 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
     span: ({ node: _node, style, children, ...props }: any) => {
       const dataColor = props['data-color'];
       const dataBg = props['data-bg'];
+      const dataTag = props['data-tag'];
       const underlineMode = props['data-underline'];
+      if (dataTag) {
+        return (
+          <span
+            style={{
+              color: dataColor || '#0f172a',
+              background: dataBg || 'linear-gradient(135deg, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0.28) 100%)',
+              border: `1px solid ${dataColor || 'rgba(59,130,246,0.28)'}`,
+            }}
+            className="inline-flex items-center rounded-full px-3 py-1 text-[0.78em] font-semibold tracking-[0.01em] shadow-[0_10px_22px_-18px_rgba(15,23,42,0.45)]"
+            {...props}
+          >
+            {children}
+          </span>
+        );
+      }
       return (
         <span
           style={{
@@ -568,8 +677,9 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
           quote: <Quote size={16} />,
           glass: <Sparkles size={16} />,
           check: <BadgeCheck size={16} />,
+          tag: <Hash size={16} />,
         };
-        const paletteMap: Record<string, { accent: string; surface: string; title: string; variant: 'soft' | 'quote' | 'glass' | 'spotlight' | 'check' }> = {
+        const paletteMap: Record<string, { accent: string; surface: string; title: string; variant: 'soft' | 'quote' | 'glass' | 'spotlight' | 'check' | 'tags' }> = {
           note: { accent: '#3b82f6', surface: '#eff6ff', title: 'Note', variant: 'soft' },
           info: { accent: '#0ea5e9', surface: '#ecfeff', title: 'Info', variant: 'soft' },
           tip: { accent: '#14b8a6', surface: '#f0fdfa', title: 'Tip', variant: 'soft' },
@@ -582,6 +692,7 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
           quote: { accent: '#475569', surface: '#f8fafc', title: 'Quote', variant: 'quote' },
           glass: { accent: '#8b5cf6', surface: 'rgba(255,255,255,0.68)', title: 'Glass', variant: 'glass' },
           check: { accent: '#10b981', surface: '#ecfdf5', title: 'Checklist', variant: 'check' },
+          tag: { accent: '#7c3aed', surface: '#f5f3ff', title: 'Tags', variant: 'tags' },
         };
         const palette = paletteMap[calloutMeta.type] || paletteMap.note;
         const cleanedChildren = childArray.slice(1);
@@ -593,6 +704,51 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
         const bodyColor = blockColor || cardStyle.calloutTextColor || cardStyle.textColor;
         const calloutTitle = calloutMeta.title || palette.title;
         const calloutBody = cleanedChildren.length > 0 ? cleanedChildren : (<p className="mb-0 opacity-70">&nbsp;</p>);
+        if (palette.variant === 'tags') {
+          const rawTagText = [calloutMeta.title, ...cleanedChildren.map((child) => {
+            if (typeof child === 'string') return child;
+            if (typeof child === 'object' && child && 'props' in child) {
+              const nested = (child as any).props?.children;
+              return Array.isArray(nested) ? nested.join('') : nested || '';
+            }
+            return '';
+          })].filter(Boolean).join('\n');
+          const tags = rawTagText
+            .split(/\n|,|，|\/|\|/g)
+            .map((item) => item.trim())
+            .filter(Boolean);
+          return (
+            <div
+              className="overflow-hidden border relative"
+              style={{
+                borderRadius: `${calloutRadius}px`,
+                borderColor: accent,
+                background: `linear-gradient(180deg, ${backgroundBase} 0%, color-mix(in srgb, ${backgroundBase} 72%, white) 100%)`,
+              }}
+            >
+              <div className="relative flex items-center gap-3 font-semibold" style={{ padding: `${Math.max(calloutPadding - 3, 12)}px ${calloutPadding}px 10px`, color: titleColor }}>
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl border" style={{ borderColor: accent, background: 'rgba(255,255,255,0.7)', color: accent }}>
+                  {iconMap.tag}
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  <span>{calloutTitle || palette.title}</span>
+                  <span className="text-[11px] font-medium opacity-65">支持颜色、加粗与多标签组合</span>
+                </div>
+              </div>
+              <div className="relative flex flex-wrap gap-2 px-5 pb-5">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    style={{ color: accent, borderColor: `color-mix(in srgb, ${accent} 35%, white)` }}
+                    className="inline-flex items-center rounded-full border bg-white/80 px-3 py-1.5 text-[12px] font-semibold shadow-[0_12px_24px_-20px_rgba(15,23,42,0.35)]"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        }
         const shellStyle = palette.variant === 'glass'
           ? { background: `linear-gradient(180deg, ${backgroundBase} 0%, rgba(255,255,255,0.28) 100%)`, backdropFilter: 'blur(18px) saturate(135%)', boxShadow: '0 24px 60px -32px rgba(76, 29, 149, 0.4)' }
           : { background: `linear-gradient(180deg, ${backgroundBase} 0%, color-mix(in srgb, ${backgroundBase} 72%, white) 100%)` };
@@ -643,9 +799,21 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
     code: ({ node: _node, children, ...props }: any) => {
       const text = String(children ?? '');
       return !text.includes('\n') ? (
-        <code style={{ backgroundColor: cardStyle.codeBackgroundColor }} className="rounded px-1.5 py-0.5 text-[0.9em] font-mono border-none" {...props}>{children}</code>
+        <code
+          style={{ backgroundColor: cardStyle.codeBackgroundColor, color: blockColor || '#0f172a' }}
+          className="rounded-md border border-black/10 px-2 py-1 text-[0.88em] font-mono tracking-[0.01em] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] dark:border-white/10"
+          {...props}
+        >
+          {String(children ?? '').replace(/^`|`$/g, '')}
+        </code>
       ) : (
-        <code style={{ backgroundColor: cardStyle.codeBackgroundColor, fontSize: '0.8em' }} className="block rounded-lg p-4 font-mono overflow-x-auto whitespace-pre-wrap break-words border-none" {...props}>{children}</code>
+        <code
+          style={{ backgroundColor: '#0b1220', color: '#dbeafe', fontSize: '0.82em' }}
+          className="block overflow-x-auto rounded-[20px] border border-slate-900/60 px-4 py-4 font-mono whitespace-pre-wrap break-words shadow-[0_24px_60px_-36px_rgba(15,23,42,0.72)]"
+          {...props}
+        >
+          {String(children ?? '').replace(/\n$/, '')}
+        </code>
       );
     },
   };
@@ -714,7 +882,7 @@ const Card = memo(({
   onApplyTextBlockWidth,
   onApplyTextBlockPlacement,
   onApplyTextBlockTypography,
-  blockEditMode,
+  isEditable,
   resolvedStyle,
 }: {
   content: string;
@@ -729,7 +897,7 @@ const Card = memo(({
   onApplyTextBlockWidth: (cardIndex: number, blockId: string, scope: LayoutScope, width: number) => void;
   onApplyTextBlockPlacement: (cardIndex: number, blockId: string, scope: LayoutScope, placement: BlockPlacement) => void;
   onApplyTextBlockTypography: (cardIndex: number, blockId: string, scope: LayoutScope, updates: Partial<TextBlockLayout>) => void;
-  blockEditMode: boolean;
+  isEditable: boolean;
   resolvedStyle: ReturnType<typeof useStore.getState>['cardStyle'];
 }) => {
   const cardStyle = resolvedStyle;
@@ -968,7 +1136,7 @@ const Card = memo(({
     window.addEventListener('pointerup', handleUp);
   };
 
-  const selectedBlockLayout = blockEditMode && selectedTextBlock?.cardIndex === index ? textLayoutsForCard[selectedTextBlock.blockId] : null;
+  const selectedBlockLayout = isEditable && selectedTextBlock?.cardIndex === index ? textLayoutsForCard[selectedTextBlock.blockId] : null;
 
   return (
     <div style={{ width: width * scale, height: cardStyle.autoHeight ? 'auto' : height * scale, transition: draggingId || draggingTextBlockId ? 'none' : 'all 0.3s ease' }} className="relative flex-shrink-0">
@@ -979,7 +1147,12 @@ const Card = memo(({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
           className={`md2-card-shell relative flex flex-col flex-shrink-0 group select-none overflow-hidden ${isResetting && !draggingId && !draggingTextBlockId ? 'transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)]' : ''}`}
-          style={outerStyle}
+          style={{
+            ...outerStyle,
+            ['--md2-h1-size' as string]: `${cardStyle.h1FontSize}px`,
+            ['--md2-h2-size' as string]: `${cardStyle.h2FontSize}px`,
+            ['--md2-h3-size' as string]: `${cardStyle.h3FontSize}px`,
+          }}
           id={`card-${index}`}
           data-page-scope={`card-${index}`}
           onMouseDown={(e) => {
@@ -999,7 +1172,7 @@ const Card = memo(({
             {renderInnerBackground()}
 
             <div className="relative z-10 flex-1 pointer-events-none">
-              {blockEditMode ? (
+              {isEditable ? (
                 <div
                   ref={textWorkspaceRef}
                   className="relative pointer-events-auto"
@@ -1110,7 +1283,14 @@ const Card = memo(({
                   lockAspectRatio={image.resizeMode === 'contain'}
                 >
                   <div className={`relative w-full h-full group cursor-move ${selectedImageId === image.id ? 'ring-2 ring-blue-500 bg-blue-500/5' : ''}`} onMouseDown={() => { setSelectedTextBlock(null); setSelectedImageId(image.id); }}>
-                    <div className="w-full h-full overflow-hidden rounded-sm pointer-events-none">
+                    <div
+                      className="w-full h-full overflow-hidden pointer-events-none"
+                      style={{
+                        borderRadius: `${image.borderRadius}px`,
+                        border: `${image.borderWidth}px solid ${image.borderColor}`,
+                        boxShadow: getImageShadow(image),
+                      }}
+                    >
                       <img
                         src={image.src}
                         alt=""
@@ -1125,9 +1305,16 @@ const Card = memo(({
                         <button onClick={(e) => { e.stopPropagation(); const ratio = (image.naturalHeight || 1) / (image.naturalWidth || 1); updateCardImage(index, image.id, { resizeMode: 'contain', height: image.width * ratio, crop: { x: 0, y: 0, scale: 1 } }); }} className={`p-1.5 rounded-lg transition-colors ${image.resizeMode === 'contain' ? 'bg-blue-500 text-white' : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400'}`} title="Contain (Keep Ratio)"><Maximize2 size={16} /></button>
                         <button onClick={(e) => { e.stopPropagation(); updateCardImage(index, image.id, { resizeMode: 'fill', crop: { x: 0, y: 0, scale: 1 } }); }} className={`p-1.5 rounded-lg transition-colors ${image.resizeMode === 'fill' ? 'bg-blue-500 text-white' : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400'}`} title="Fill"><StretchHorizontal size={16} /></button>
                         <button onClick={(e) => { e.stopPropagation(); const naturalWidth = image.naturalWidth || image.width; const initialScale = image.width / naturalWidth; updateCardImage(index, image.id, { resizeMode: 'none', crop: { ...image.crop, scale: initialScale, x: 0, y: 0 } }); }} className={`p-1.5 rounded-lg transition-colors ${image.resizeMode === 'none' ? 'bg-blue-500 text-white' : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400'}`} title="Crop Mode (Figma Style)"><Crop size={16} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); }} className="p-1.5 rounded-lg bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200" title="Image Style"><Sliders size={16} /></button>
                         <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1" />
                         <button onClick={(e) => { e.stopPropagation(); removeCardImage(index, image.id); setSelectedImageId(null); }} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors" title="Delete"><Trash2 size={16} /></button>
                       </div>
+                    )}
+                    {selectedImageId === image.id && (
+                      <ImageStylePanel
+                        image={image}
+                        onChange={(updates) => updateCardImage(index, image.id, updates as any)}
+                      />
                     )}
                   </div>
                 </Rnd>
@@ -1135,7 +1322,7 @@ const Card = memo(({
             </div>
           </div>
 
-          {blockEditMode && selectedBlockLayout && (
+          {isEditable && selectedBlockLayout && (
             <TextBlockToolbar
               anchor={toolbarRect}
               layout={selectedBlockLayout}
@@ -1154,7 +1341,7 @@ const Card = memo(({
 Card.displayName = 'Card';
 
 export const Preview = () => {
-  const { markdown, setIsScrolled, setActiveCardIndex, cardStyle, isEditorOpen, isSidebarOpen, previewZoom, setPreviewZoom, cardTextLayouts, setCardTextLayouts, blockEditMode, setBlockEditMode } = useStore();
+  const { markdown, setIsScrolled, setActiveCardIndex, cardStyle, isEditorOpen, isSidebarOpen, previewZoom, setPreviewZoom, cardTextLayouts, setCardTextLayouts, blockEditMode, blockEditScope, setBlockEditMode, setBlockEditScope, activeCardIndex } = useStore();
   const debouncedMarkdown = useDebounce(markdown, 300);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -1257,6 +1444,12 @@ export const Preview = () => {
     }
   }, [blockEditMode]);
 
+  useEffect(() => {
+    if (blockEditScope === 'page' && selectedTextBlock && selectedTextBlock.cardIndex !== activeCardIndex) {
+      setSelectedTextBlock(null);
+    }
+  }, [activeCardIndex, blockEditScope, selectedTextBlock]);
+
   const pages = (cardStyle.layoutMode === 'long' ? [debouncedMarkdown] : debouncedMarkdown.split(/\n\s*---\s*\n|^\s*---\s*$/m).filter((page) => page.trim() !== ''))
     .map((page) => {
       const parsed = extractPageStyleDirective(page);
@@ -1324,6 +1517,26 @@ export const Preview = () => {
     }));
   };
 
+  const cycleBlockEditMode = () => {
+    if (!blockEditMode) {
+      setBlockEditScope('page');
+      setBlockEditMode(true);
+      return;
+    }
+    if (blockEditScope === 'page') {
+      setBlockEditScope('all');
+      return;
+    }
+    setBlockEditMode(false);
+    setSelectedTextBlock(null);
+  };
+
+  const blockEditLabel = !blockEditMode
+    ? '块编辑：关'
+    : blockEditScope === 'page'
+      ? '块编辑：当前页'
+      : '块编辑：全局';
+
   const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
   const paddingLeft = (isDesktop && isEditorOpen) ? '448px' : '2rem';
   const paddingRight = (isDesktop && isSidebarOpen) ? '398px' : '2rem';
@@ -1343,11 +1556,11 @@ export const Preview = () => {
       <div className="sticky top-20 z-30 -mt-8 flex w-full justify-end px-4 pointer-events-none">
         <button
           type="button"
-          onClick={() => setBlockEditMode(!blockEditMode)}
+          onClick={cycleBlockEditMode}
           className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-xl transition ${blockEditMode ? 'border-sky-400/60 bg-sky-500 text-white shadow-sky-500/25' : 'border-white/40 bg-white/80 text-slate-700 shadow-slate-900/10 dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200'}`}
         >
-          <PenSquare size={14} />
-          {blockEditMode ? '块编辑：开' : '块编辑：关'}
+          {!blockEditMode ? <PenSquare size={14} /> : blockEditScope === 'page' ? <FileText size={14} /> : <Globe2 size={14} />}
+          {blockEditLabel}
         </button>
       </div>
 
@@ -1366,7 +1579,7 @@ export const Preview = () => {
           onApplyTextBlockWidth={handleApplyTextBlockWidth}
           onApplyTextBlockPlacement={handleApplyTextBlockPlacement}
           onApplyTextBlockTypography={handleApplyTextBlockTypography}
-          blockEditMode={blockEditMode}
+          isEditable={blockEditMode && (blockEditScope === 'all' || index === activeCardIndex)}
           resolvedStyle={page.resolvedStyle}
         />
       ))}
