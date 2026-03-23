@@ -266,12 +266,25 @@
     display: none;
   }
 
+  .md2-text-block-handle {
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .md2-text-block:hover .md2-text-block-handle {
+    opacity: 0.38;
+  }
+
   body[data-md2-exporting='true'] .md2-live-frame {
     display: none !important;
   }
 
   body[data-md2-exporting='true'] .md2-export-fallback {
     display: block !important;
+  }
+
+  body[data-md2-exporting='true'] .md2-text-block-handle {
+    display: none !important;
   }
 
   .md2-handdrawn-underline {

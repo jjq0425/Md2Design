@@ -10,7 +10,7 @@ import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import { motion } from 'framer-motion';
 import { Rnd } from 'react-rnd';
-import { AlignCenter, AlignLeft, AlignRight, Grip, Hash, Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square, Palette, Type, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Hash, Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square, Palette, Type, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { preprocessMarkdown, extractCalloutMeta } from '../utils/markdownEnhancer';
 import { LIVE_EMBED_PRESETS, isSafeEmbedUrl, buildLiveEmbedPosterDataUrl } from '../utils/liveEmbeds';
 import { extractPageStyleDirective, resolvePageCardStyle } from '../utils/pageStyles';
@@ -90,6 +90,52 @@ const ToolbarSection = ({
   </button>
 );
 
+const DragHandleDots = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    {[2, 7, 12].flatMap((x) => [2, 7, 12].map((y) => ({ x, y }))).map((dot) => (
+      <circle key={`${dot.x}-${dot.y}`} cx={dot.x} cy={dot.y} r="1.1" fill="currentColor" />
+    ))}
+  </svg>
+);
+
+const ToolbarNumberField = ({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  suffix = '',
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  suffix?: string;
+}) => (
+  <label className="rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
+    <div className="mb-1 flex items-center justify-between font-semibold opacity-60">
+      <span>{label}</span>
+      {suffix && <span className="font-mono opacity-70">{suffix}</span>}
+    </div>
+    <input
+      type="number"
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      onChange={(e) => {
+        const nextValue = Number(e.target.value);
+        if (Number.isNaN(nextValue)) return;
+        onChange(nextValue);
+      }}
+      className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm font-mono outline-none dark:border-white/10"
+    />
+  </label>
+);
+
 type LayoutScope = 'block' | 'page' | 'all';
 type BlockPlacement = 'left' | 'center' | 'right';
 
@@ -99,14 +145,17 @@ const TextBlockToolbar = ({
   onChange,
   onApplyWidth,
   onApplyPlacement,
+  onApplyTypography,
 }: {
   anchor: DOMRect | null;
   layout: TextBlockLayout;
   onChange: (updates: Partial<TextBlockLayout>) => void;
   onApplyWidth: (scope: LayoutScope, width: number) => void;
   onApplyPlacement: (scope: LayoutScope, placement: BlockPlacement) => void;
+  onApplyTypography: (scope: LayoutScope, updates: Partial<TextBlockLayout>) => void;
 }) => {
   const [openPanel, setOpenPanel] = useState<'type' | 'layout' | 'number' | null>('type');
+  const [typeScope, setTypeScope] = useState<LayoutScope>('block');
   const [layoutScope, setLayoutScope] = useState<LayoutScope>('block');
 
   if (!anchor) return null;
@@ -126,26 +175,62 @@ const TextBlockToolbar = ({
       </div>
 
       {openPanel === 'type' && (
-        <div className="mt-2 grid min-w-[320px] grid-cols-2 gap-2 rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
-          <label className="rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
-            <div className="mb-1 font-semibold opacity-60">字号</div>
-            <input type="range" min={12} max={72} value={layout.fontSize ?? 20} onChange={(e) => onChange({ fontSize: Number(e.target.value) })} className="w-full" />
-            <div className="mt-1 text-right font-mono">{layout.fontSize ?? 20}px</div>
-          </label>
-          <label className="rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
-            <div className="mb-1 font-semibold opacity-60">粗细</div>
-            <input type="range" min={300} max={900} step={100} value={layout.fontWeight ?? 500} onChange={(e) => onChange({ fontWeight: Number(e.target.value) })} className="w-full" />
-            <div className="mt-1 text-right font-mono">{layout.fontWeight ?? 500}</div>
-          </label>
+        <div className="mt-2 grid min-w-[340px] grid-cols-2 gap-2 rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
+          <div className="col-span-2 rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-semibold opacity-60">文字设置范围</span>
+              <span className="opacity-45">字号 / 行距支持按页或全部统一</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'block', label: '当前块' },
+                { value: 'page', label: '当前页' },
+                { value: 'all', label: '全部' },
+              ].map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setTypeScope(item.value as LayoutScope)}
+                  className={`rounded-xl px-3 py-2 text-[11px] font-semibold transition ${typeScope === item.value ? 'bg-slate-900 text-white dark:bg-sky-500' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-200'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ToolbarNumberField
+            label="字号"
+            value={layout.fontSize ?? 20}
+            min={12}
+            max={72}
+            suffix="px"
+            onChange={(value) => onApplyTypography(typeScope, { fontSize: value })}
+          />
+          <ToolbarNumberField
+            label="粗细"
+            value={layout.fontWeight ?? 500}
+            min={300}
+            max={900}
+            step={100}
+            onChange={(value) => onApplyTypography(typeScope, { fontWeight: value })}
+          />
           <label className="rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
             <div className="mb-1 flex items-center gap-1 font-semibold opacity-60"><Palette size={12} /> 颜色</div>
-            <input type="color" value={layout.color ?? '#0f172a'} onChange={(e) => onChange({ color: e.target.value })} className="h-9 w-full rounded-lg border border-black/10 bg-transparent dark:border-white/10" />
+            <input
+              type="color"
+              value={layout.color ?? '#0f172a'}
+              onChange={(e) => onApplyTypography(typeScope, { color: e.target.value })}
+              className="h-10 w-full rounded-lg border border-black/10 bg-transparent dark:border-white/10"
+            />
           </label>
-          <label className="rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
-            <div className="mb-1 font-semibold opacity-60">行距</div>
-            <input type="range" min={1} max={2.2} step={0.05} value={layout.lineHeight ?? 1.55} onChange={(e) => onChange({ lineHeight: Number(e.target.value) })} className="w-full" />
-            <div className="mt-1 text-right font-mono">{(layout.lineHeight ?? 1.55).toFixed(2)}</div>
-          </label>
+          <ToolbarNumberField
+            label="行距"
+            value={Number((layout.lineHeight ?? 1.55).toFixed(2))}
+            min={1}
+            max={2.2}
+            step={0.05}
+            onChange={(value) => onApplyTypography(typeScope, { lineHeight: Number(value.toFixed(2)) })}
+          />
         </div>
       )}
 
@@ -180,16 +265,17 @@ const TextBlockToolbar = ({
               <span className="opacity-45">{layoutScope === 'block' ? '仅当前块' : layoutScope === 'page' ? '整页统一' : '全部统一'}</span>
             </div>
             <input
-              type="range"
+              type="number"
               min={180}
               max={960}
               step={10}
               value={layout.width ?? 320}
               onChange={(e) => {
                 const nextWidth = Number(e.target.value);
+                if (Number.isNaN(nextWidth)) return;
                 onApplyWidth(layoutScope, nextWidth);
               }}
-              className="w-full"
+              className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm font-mono outline-none dark:border-white/10"
             />
             <div className="mt-1 text-right font-mono">{layout.width ?? 320}px</div>
           </label>
@@ -587,6 +673,7 @@ const Card = memo(({
   setSelectedTextBlock,
   onApplyTextBlockWidth,
   onApplyTextBlockPlacement,
+  onApplyTextBlockTypography,
   resolvedStyle,
 }: {
   content: string;
@@ -600,6 +687,7 @@ const Card = memo(({
   setSelectedTextBlock: (value: { cardIndex: number; blockId: string } | null) => void;
   onApplyTextBlockWidth: (cardIndex: number, blockId: string, scope: LayoutScope, width: number) => void;
   onApplyTextBlockPlacement: (cardIndex: number, blockId: string, scope: LayoutScope, placement: BlockPlacement) => void;
+  onApplyTextBlockTypography: (cardIndex: number, blockId: string, scope: LayoutScope, updates: Partial<TextBlockLayout>) => void;
   resolvedStyle: ReturnType<typeof useStore.getState>['cardStyle'];
 }) => {
   const cardStyle = resolvedStyle;
@@ -888,7 +976,7 @@ const Card = memo(({
                     <div
                       key={block.id}
                       ref={(element) => { blockRefs.current[block.id] = element; }}
-                      className={`absolute cursor-grab rounded-[24px] border transition ${isSelected ? 'border-sky-400 bg-sky-50/70 shadow-[0_18px_50px_-30px_rgba(14,165,233,0.55)] dark:bg-sky-500/10' : 'border-transparent hover:border-black/10 hover:bg-white/35 dark:hover:border-white/10 dark:hover:bg-white/5'} ${draggingTextBlockId === block.id ? 'cursor-grabbing' : ''}`}
+                      className={`md2-text-block absolute cursor-grab rounded-[24px] border transition ${isSelected ? 'border-sky-400 bg-sky-50/70 shadow-[0_18px_50px_-30px_rgba(14,165,233,0.55)] dark:bg-sky-500/10' : 'border-transparent hover:border-black/10 hover:bg-white/35 dark:hover:border-white/10 dark:hover:bg-white/5'} ${draggingTextBlockId === block.id ? 'cursor-grabbing' : ''}`}
                       style={{ left: layout.x || 0, top: layout.y ?? 0, width: blockWidth, padding: '14px 16px' }}
                       onPointerDown={(event) => handleBlockDragStart(block.id, event)}
                       onMouseDown={() => {
@@ -896,7 +984,9 @@ const Card = memo(({
                         setSelectedTextBlock({ cardIndex: index, blockId: block.id });
                       }}
                     >
-                      <div className="pointer-events-none absolute left-3 top-3 opacity-30"><Grip size={14} /></div>
+                      <div className="md2-text-block-handle pointer-events-none absolute left-3 top-3 text-slate-500">
+                        <DragHandleDots />
+                      </div>
                       {layout.showNumber && (
                         <div className="mb-3 inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white shadow-lg shadow-slate-900/20">
                           {layout.numberLabel || String(blocks.findIndex((item) => item.id === block.id) + 1).padStart(2, '0')}
@@ -1006,6 +1096,7 @@ const Card = memo(({
               onChange={(updates) => updateCardTextLayout(index, selectedTextBlock!.blockId, updates)}
               onApplyWidth={(scope, nextWidth) => onApplyTextBlockWidth(index, selectedTextBlock!.blockId, scope, nextWidth)}
               onApplyPlacement={(scope, placement) => onApplyTextBlockPlacement(index, selectedTextBlock!.blockId, scope, placement)}
+              onApplyTypography={(scope, updates) => onApplyTextBlockTypography(index, selectedTextBlock!.blockId, scope, updates)}
             />
           )}
         </motion.div>
@@ -1174,6 +1265,13 @@ export const Preview = () => {
     });
   };
 
+  const handleApplyTextBlockTypography = (cardIndex: number, blockId: string, scope: LayoutScope, updates: Partial<TextBlockLayout>) => {
+    updateTextLayoutsByScope(cardIndex, blockId, scope, (existing) => ({
+      ...existing,
+      ...updates,
+    }));
+  };
+
   const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
   const paddingLeft = (isDesktop && isEditorOpen) ? '448px' : '2rem';
   const paddingRight = (isDesktop && isSidebarOpen) ? '398px' : '2rem';
@@ -1204,6 +1302,7 @@ export const Preview = () => {
           setSelectedTextBlock={setSelectedTextBlock}
           onApplyTextBlockWidth={handleApplyTextBlockWidth}
           onApplyTextBlockPlacement={handleApplyTextBlockPlacement}
+          onApplyTextBlockTypography={handleApplyTextBlockTypography}
           resolvedStyle={page.resolvedStyle}
         />
       ))}
