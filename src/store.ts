@@ -218,6 +218,9 @@ interface AppState {
   previewZoom: number; // 0 means auto-fit
   setPreviewZoom: (zoom: number) => void;
 
+  blockEditMode: boolean;
+  setBlockEditMode: (enabled: boolean) => void;
+
   presets: StylePreset[];
   savePreset: (name: string) => void;
   deletePreset: (id: string) => void;
@@ -600,6 +603,9 @@ export const useStore = create<AppState>()(
   previewZoom: 0,
   setPreviewZoom: (previewZoom) => set({ previewZoom }),
 
+  blockEditMode: false,
+  setBlockEditMode: (blockEditMode) => set({ blockEditMode }),
+
   presets: [],
   savePreset: (name) => set((state) => ({
     presets: [
@@ -636,7 +642,7 @@ export const useStore = create<AppState>()(
     {
       name: 'md2card-storage',
       storage: createJSONStorage(() => localStorage),
-      version: 7,
+      version: 8,
       migrate: (persistedState: any, version: number) => {
         if (!persistedState) return persistedState;
 
@@ -649,6 +655,10 @@ export const useStore = create<AppState>()(
             layoutMode = 'landscape';
           }
           persistedState.cardStyle.layoutMode = layoutMode;
+        }
+
+        if (version <= 7) {
+          persistedState.blockEditMode = persistedState.blockEditMode ?? false;
         }
 
         if (version <= 6) {
@@ -737,6 +747,7 @@ export const useStore = create<AppState>()(
         cardStyle: state.cardStyle,
         cardImages: state.cardImages,
         cardTextLayouts: state.cardTextLayouts,
+        blockEditMode: state.blockEditMode,
         activeCardIndex: state.activeCardIndex,
         presets: state.presets,
         isEditorOpen: state.isEditorOpen,
@@ -757,7 +768,8 @@ export const useStore = create<AppState>()(
       partialize: (state) => ({ 
         markdown: state.markdown,
         cardImages: state.cardImages,
-        cardTextLayouts: state.cardTextLayouts 
+        cardTextLayouts: state.cardTextLayouts,
+        blockEditMode: state.blockEditMode 
       }),
       limit: 100, // Limit history size
     }

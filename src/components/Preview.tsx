@@ -10,7 +10,7 @@ import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import { motion } from 'framer-motion';
 import { Rnd } from 'react-rnd';
-import { AlignCenter, AlignLeft, AlignRight, Hash, Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square, Palette, Type, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Hash, Info, Lightbulb, BadgeCheck, TriangleAlert, ShieldAlert, Sparkles, Quote, Trash2, Maximize2, StretchHorizontal, Crop, Square, Palette, Type, SlidersHorizontal, ChevronDown, PenSquare } from 'lucide-react';
 import { preprocessMarkdown, extractCalloutMeta } from '../utils/markdownEnhancer';
 import { LIVE_EMBED_PRESETS, isSafeEmbedUrl, buildLiveEmbedPosterDataUrl } from '../utils/liveEmbeds';
 import { extractPageStyleDirective, resolvePageCardStyle } from '../utils/pageStyles';
@@ -160,13 +160,14 @@ const TextBlockToolbar = ({
 
   if (!anchor) return null;
 
-  const top = Math.max(16, anchor.top - 14);
+  const placeAbove = anchor.top > 360;
+  const top = placeAbove ? anchor.top - 14 : Math.min(window.innerHeight - 24, anchor.bottom + 14);
   const left = clamp(anchor.left + anchor.width / 2, 180, window.innerWidth - 180);
 
   return createPortal(
     <div
-      className="fixed z-[160] -translate-x-1/2 -translate-y-full rounded-[24px] border border-white/60 bg-white/88 p-2 shadow-[0_26px_80px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/86"
-      style={{ top, left }}
+      className={`fixed z-[160] -translate-x-1/2 rounded-[24px] border border-white/60 bg-white/88 p-2 shadow-[0_26px_80px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/86 ${placeAbove ? '-translate-y-full' : ''}`}
+      style={{ top, left, maxHeight: 'min(62vh, 480px)', overflowY: 'auto' }}
     >
       <div className="flex flex-wrap items-center gap-2">
         <ToolbarSection icon={<Type size={13} />} label="文字" active={openPanel === 'type'} onClick={() => setOpenPanel(openPanel === 'type' ? null : 'type')} />
@@ -626,7 +627,10 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
     },
     a: ({ node: _node, ...props }: any) => <a style={{ color: blockColor || cardStyle.accentColor }} className="underline decoration-auto underline-offset-2 break-all" {...props} />,
     img: ({ node: _node, src, alt, ...props }: any) => {
-      if (src === 'spacer' || src?.startsWith('spacer?')) return null;
+      if (src === 'spacer' || src?.startsWith('spacer?')) {
+        const spacerId = src.includes('id=') ? src.split('id=')[1] : null;
+        return <div data-spacer-id={spacerId} className="w-full h-48 bg-transparent my-4 pointer-events-none" />;
+      }
       let imgWidth: string | undefined;
       let cleanSrc = src;
       if (src && src.includes('#width=')) {
@@ -661,6 +665,42 @@ const MarkdownBlock = ({ content, cardStyle, layout }: { content: string; cardSt
   );
 };
 
+const FullMarkdownContent = ({
+  content,
+  cardStyle,
+}: {
+  content: string;
+  cardStyle: ReturnType<typeof useStore.getState>['cardStyle'];
+}) => {
+  const baseLayout = useMemo<TextBlockLayout>(() => ({
+    x: 0,
+    y: 0,
+    width: 0,
+    fontSize: cardStyle.fontSize,
+    fontWeight: 500,
+    lineHeight: 1.55,
+    color: cardStyle.textColor,
+    textAlign: 'left',
+    showNumber: false,
+    numberLabel: '',
+  }), [cardStyle.fontSize, cardStyle.textColor]);
+
+  const enhancedContent = preprocessMarkdown(content);
+  const processedContent = enhancedContent.replace(/\n\s*\n/g, '\n\n&zwnj;\n\n');
+  const components = useMemo(() => buildMarkdownComponents(cardStyle, baseLayout), [cardStyle, baseLayout]);
+
+  return (
+    <div
+      className="prose prose-sm max-w-none flex-1 pointer-events-auto overflow-hidden break-words [&>*:first-child]:mt-0 prose-hr:hidden prose-blockquote:before:content-none prose-blockquote:after:content-none prose-blockquote:border-none [&_*]:border-none !prose-quotes-none"
+      style={{ padding: 0, fontFamily: 'inherit', fontSize: `${cardStyle.fontSize}px` }}
+    >
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]} components={components as any}>
+        {processedContent}
+      </ReactMarkdown>
+    </div>
+  );
+};
+
 const Card = memo(({
   content,
   index,
@@ -674,6 +714,7 @@ const Card = memo(({
   onApplyTextBlockWidth,
   onApplyTextBlockPlacement,
   onApplyTextBlockTypography,
+  blockEditMode,
   resolvedStyle,
 }: {
   content: string;
@@ -688,6 +729,7 @@ const Card = memo(({
   onApplyTextBlockWidth: (cardIndex: number, blockId: string, scope: LayoutScope, width: number) => void;
   onApplyTextBlockPlacement: (cardIndex: number, blockId: string, scope: LayoutScope, placement: BlockPlacement) => void;
   onApplyTextBlockTypography: (cardIndex: number, blockId: string, scope: LayoutScope, updates: Partial<TextBlockLayout>) => void;
+  blockEditMode: boolean;
   resolvedStyle: ReturnType<typeof useStore.getState>['cardStyle'];
 }) => {
   const cardStyle = resolvedStyle;
@@ -926,7 +968,7 @@ const Card = memo(({
     window.addEventListener('pointerup', handleUp);
   };
 
-  const selectedBlockLayout = selectedTextBlock?.cardIndex === index ? textLayoutsForCard[selectedTextBlock.blockId] : null;
+  const selectedBlockLayout = blockEditMode && selectedTextBlock?.cardIndex === index ? textLayoutsForCard[selectedTextBlock.blockId] : null;
 
   return (
     <div style={{ width: width * scale, height: cardStyle.autoHeight ? 'auto' : height * scale, transition: draggingId || draggingTextBlockId ? 'none' : 'all 0.3s ease' }} className="relative flex-shrink-0">
@@ -957,48 +999,52 @@ const Card = memo(({
             {renderInnerBackground()}
 
             <div className="relative z-10 flex-1 pointer-events-none">
-              <div
-                ref={textWorkspaceRef}
-                className="relative pointer-events-auto"
-                style={{ minHeight: `${workspaceHeight}px`, height: cardStyle.autoHeight ? 'auto' : `${fixedContentHeight}px` }}
-                onMouseDown={(e) => {
-                  if (e.target === e.currentTarget) {
-                    setSelectedImageId(null);
-                    setSelectedTextBlock(null);
-                  }
-                }}
-              >
-                {blocks.map((block) => {
-                  const layout = textLayoutsForCard[block.id] || { x: 0, y: autoPositions[block.id] ?? 0, width: availableTextWidth, fontSize: cardStyle.fontSize, fontWeight: 500, lineHeight: 1.55, color: cardStyle.textColor, textAlign: 'left', showNumber: false, numberLabel: '' };
-                  const isSelected = selectedTextBlock?.cardIndex === index && selectedTextBlock.blockId === block.id;
-                  const blockWidth = clamp(layout.width || availableTextWidth, 180, availableTextWidth);
-                  return (
-                    <div
-                      key={block.id}
-                      ref={(element) => { blockRefs.current[block.id] = element; }}
-                      className={`md2-text-block absolute cursor-grab rounded-[24px] border transition ${isSelected ? 'border-sky-400 bg-sky-50/70 shadow-[0_18px_50px_-30px_rgba(14,165,233,0.55)] dark:bg-sky-500/10' : 'border-transparent hover:border-black/10 hover:bg-white/35 dark:hover:border-white/10 dark:hover:bg-white/5'} ${draggingTextBlockId === block.id ? 'cursor-grabbing' : ''}`}
-                      style={{ left: layout.x || 0, top: layout.y ?? 0, width: blockWidth, padding: '14px 16px' }}
-                      onPointerDown={(event) => handleBlockDragStart(block.id, event)}
-                      onMouseDown={() => {
-                        setSelectedImageId(null);
-                        setSelectedTextBlock({ cardIndex: index, blockId: block.id });
-                      }}
-                    >
-                      <div className="md2-text-block-handle pointer-events-none absolute left-3 top-3 text-slate-500">
-                        <DragHandleDots />
-                      </div>
-                      {layout.showNumber && (
-                        <div className="mb-3 inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white shadow-lg shadow-slate-900/20">
-                          {layout.numberLabel || String(blocks.findIndex((item) => item.id === block.id) + 1).padStart(2, '0')}
+              {blockEditMode ? (
+                <div
+                  ref={textWorkspaceRef}
+                  className="relative pointer-events-auto"
+                  style={{ minHeight: `${workspaceHeight}px`, height: cardStyle.autoHeight ? 'auto' : `${fixedContentHeight}px` }}
+                  onMouseDown={(e) => {
+                    if (e.target === e.currentTarget) {
+                      setSelectedImageId(null);
+                      setSelectedTextBlock(null);
+                    }
+                  }}
+                >
+                  {blocks.map((block) => {
+                    const layout = textLayoutsForCard[block.id] || { x: 0, y: autoPositions[block.id] ?? 0, width: availableTextWidth, fontSize: cardStyle.fontSize, fontWeight: 500, lineHeight: 1.55, color: cardStyle.textColor, textAlign: 'left', showNumber: false, numberLabel: '' };
+                    const isSelected = selectedTextBlock?.cardIndex === index && selectedTextBlock.blockId === block.id;
+                    const blockWidth = clamp(layout.width || availableTextWidth, 180, availableTextWidth);
+                    return (
+                      <div
+                        key={block.id}
+                        ref={(element) => { blockRefs.current[block.id] = element; }}
+                        className={`md2-text-block absolute cursor-grab rounded-[24px] border transition ${isSelected ? 'border-sky-400 bg-sky-50/70 shadow-[0_18px_50px_-30px_rgba(14,165,233,0.55)] dark:bg-sky-500/10' : 'border-transparent hover:border-black/10 hover:bg-white/35 dark:hover:border-white/10 dark:hover:bg-white/5'} ${draggingTextBlockId === block.id ? 'cursor-grabbing' : ''}`}
+                        style={{ left: layout.x || 0, top: layout.y ?? 0, width: blockWidth, padding: '14px 16px' }}
+                        onPointerDown={(event) => handleBlockDragStart(block.id, event)}
+                        onMouseDown={() => {
+                          setSelectedImageId(null);
+                          setSelectedTextBlock({ cardIndex: index, blockId: block.id });
+                        }}
+                      >
+                        <div className="md2-text-block-handle pointer-events-none absolute left-3 top-3 text-slate-500">
+                          <DragHandleDots />
                         </div>
-                      )}
-                      <div className="mt-4">
-                        <MarkdownBlock content={block.content} cardStyle={cardStyle} layout={layout} />
+                        {layout.showNumber && (
+                          <div className="mb-3 inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white shadow-lg shadow-slate-900/20">
+                            {layout.numberLabel || String(blocks.findIndex((item) => item.id === block.id) + 1).padStart(2, '0')}
+                          </div>
+                        )}
+                        <div className="mt-4">
+                          <MarkdownBlock content={block.content} cardStyle={cardStyle} layout={layout} />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <FullMarkdownContent content={content} cardStyle={cardStyle} />
+              )}
             </div>
 
             {(cardStyle.watermark?.enabled || cardStyle.pageNumber?.enabled) && (
@@ -1089,7 +1135,7 @@ const Card = memo(({
             </div>
           </div>
 
-          {selectedBlockLayout && (
+          {blockEditMode && selectedBlockLayout && (
             <TextBlockToolbar
               anchor={toolbarRect}
               layout={selectedBlockLayout}
@@ -1108,7 +1154,7 @@ const Card = memo(({
 Card.displayName = 'Card';
 
 export const Preview = () => {
-  const { markdown, setIsScrolled, setActiveCardIndex, cardStyle, isEditorOpen, isSidebarOpen, previewZoom, setPreviewZoom, cardTextLayouts, setCardTextLayouts } = useStore();
+  const { markdown, setIsScrolled, setActiveCardIndex, cardStyle, isEditorOpen, isSidebarOpen, previewZoom, setPreviewZoom, cardTextLayouts, setCardTextLayouts, blockEditMode, setBlockEditMode } = useStore();
   const debouncedMarkdown = useDebounce(markdown, 300);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -1205,6 +1251,12 @@ export const Preview = () => {
     return () => el?.removeEventListener('scroll', handleScroll);
   }, [setIsScrolled, setActiveCardIndex]);
 
+  useEffect(() => {
+    if (!blockEditMode) {
+      setSelectedTextBlock(null);
+    }
+  }, [blockEditMode]);
+
   const pages = (cardStyle.layoutMode === 'long' ? [debouncedMarkdown] : debouncedMarkdown.split(/\n\s*---\s*\n|^\s*---\s*$/m).filter((page) => page.trim() !== ''))
     .map((page) => {
       const parsed = extractPageStyleDirective(page);
@@ -1288,6 +1340,17 @@ export const Preview = () => {
         }
       }}
     >
+      <div className="sticky top-20 z-30 -mt-8 flex w-full justify-end px-4 pointer-events-none">
+        <button
+          type="button"
+          onClick={() => setBlockEditMode(!blockEditMode)}
+          className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-xl transition ${blockEditMode ? 'border-sky-400/60 bg-sky-500 text-white shadow-sky-500/25' : 'border-white/40 bg-white/80 text-slate-700 shadow-slate-900/10 dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200'}`}
+        >
+          <PenSquare size={14} />
+          {blockEditMode ? '块编辑：开' : '块编辑：关'}
+        </button>
+      </div>
+
       {pages.map((page, index) => (
         <Card
           key={index}
@@ -1303,6 +1366,7 @@ export const Preview = () => {
           onApplyTextBlockWidth={handleApplyTextBlockWidth}
           onApplyTextBlockPlacement={handleApplyTextBlockPlacement}
           onApplyTextBlockTypography={handleApplyTextBlockTypography}
+          blockEditMode={blockEditMode}
           resolvedStyle={page.resolvedStyle}
         />
       ))}
