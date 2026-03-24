@@ -899,7 +899,10 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
       const text = String(children ?? '');
       const normalizedInlineCode = (() => {
         const match = text.match(/^`+([\s\S]*?)`+$/);
-        return (match ? match[1] : text).replace(/[`｀]/g, '').trim();
+        return (match ? match[1] : text)
+          .replace(/&#96;|&grave;/gi, '')
+          .replace(/[`｀ˋ´‘’]/g, '')
+          .trim();
       })();
       return !text.includes('\n') ? (
         <code
