@@ -21,6 +21,125 @@ const PAGE_LAYOUT_KEY = '__page__';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+const getCodeLanguage = (className?: string) => {
+  const match = className?.match(/language-([\w-]+)/i);
+  return (match?.[1] || 'text').toLowerCase();
+};
+
+const highlightCodeLine = (line: string, language: string, enabled: boolean) => {
+  if (!enabled) return [{ text: line, className: '' }];
+  const rules: Array<{ pattern: RegExp; className: string }> = [
+    { pattern: /("(?:\\.|[^"])*"|'(?:\\.|[^'])*')/g, className: 'text-amber-300' },
+    { pattern: /\b(\d+(?:\.\d+)?)\b/g, className: 'text-cyan-300' },
+    { pattern: /\b(true|false|null|undefined)\b/g, className: 'text-violet-300' },
+    { pattern: /\b(import|from|export|default|return|if|else|for|while|switch|case|break|continue|const|let|var|function|class|new|await|async|try|catch|throw)\b/g, className: 'text-sky-300' },
+  ];
+  if (language === 'bash' || language === 'shell' || language === 'sh') {
+    rules.unshift({ pattern: /(^|\s)(\$[^\n]*)/g, className: 'text-emerald-300' });
+  }
+
+  const matches: Array<{ start: number; end: number; className: string }> = [];
+  rules.forEach(({ pattern, className }) => {
+    pattern.lastIndex = 0;
+    let match: RegExpExecArray | null = pattern.exec(line);
+    while (match) {
+      const matchText = match[0];
+      const captureText = match[1] ?? matchText;
+      const index = matchText.indexOf(captureText);
+      const start = match.index + Math.max(index, 0);
+      const end = start + captureText.length;
+      if (captureText.length > 0) matches.push({ start, end, className });
+      match = pattern.exec(line);
+    }
+  });
+  matches.sort((a, b) => a.start - b.start || b.end - a.end);
+  const merged: typeof matches = [];
+  matches.forEach((token) => {
+    const overlap = merged.some((existing) => token.start < existing.end && token.end > existing.start);
+    if (!overlap) merged.push(token);
+  });
+  const segments: Array<{ text: string; className: string }> = [];
+  let cursor = 0;
+  merged.forEach((token) => {
+    if (token.start > cursor) segments.push({ text: line.slice(cursor, token.start), className: '' });
+    segments.push({ text: line.slice(token.start, token.end), className: token.className });
+    cursor = token.end;
+  });
+  if (cursor < line.length) segments.push({ text: line.slice(cursor), className: '' });
+  return segments.length > 0 ? segments : [{ text: line, className: '' }];
+};
+
+const CodeBlockRenderer = ({ codeText, className, cardStyle }: { codeText: string; className?: string; cardStyle: ReturnType<typeof useStore.getState>['cardStyle'] }) => {
+  const updateCardStyle = useStore((state) => state.updateCardStyle);
+  const [showPanel, setShowPanel] = useState(false);
+  const language = getCodeLanguage(className);
+  const lines = codeText.replace(/\n$/, '').split('\n');
+  const headerTitle = cardStyle.codeBlockTitle?.trim() || `snippet.${language === 'text' ? 'txt' : language}`;
+
+  return (
+    <div
+      className="group/code relative my-3 overflow-hidden rounded-2xl border border-slate-900/80 bg-[#0a0f1d] font-mono shadow-[0_20px_58px_-36px_rgba(15,23,42,0.78)]"
+      onMouseEnter={() => setShowPanel(true)}
+      onMouseLeave={() => setShowPanel(false)}
+    >
+      {(cardStyle.codeShowTitle || cardStyle.codeShowLineNumbers || cardStyle.codeSyntaxHighlight) && (
+        <div className="flex items-center justify-between border-b border-slate-700/60 bg-[#111827] px-3 py-2 text-[11px] text-slate-300">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-400/90" />
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-300/90" />
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
+            {cardStyle.codeShowTitle && <span className="ml-1 font-semibold tracking-wide text-slate-200">{headerTitle}</span>}
+          </div>
+          <span className="uppercase tracking-wider text-slate-400">{language}</span>
+        </div>
+      )}
+      <pre className="overflow-x-auto px-0 py-3 text-[12.5px] leading-6 text-slate-200">
+        {lines.map((line, index) => {
+          const segments = highlightCodeLine(line, language, cardStyle.codeSyntaxHighlight);
+          return (
+            <div key={`${index}-${line}`} className="grid min-h-6 grid-cols-[auto_1fr]">
+              {cardStyle.codeShowLineNumbers && (
+                <span className="select-none border-r border-slate-800/80 px-3 text-right text-slate-500">{index + 1}</span>
+              )}
+              <span className={`px-4 whitespace-pre ${cardStyle.codeShowLineNumbers ? '' : 'col-span-2'}`}>
+                {segments.map((seg, segIndex) => (
+                  <span key={`${segIndex}-${seg.text}`} className={seg.className}>{seg.text || ' '}</span>
+                ))}
+              </span>
+            </div>
+          );
+        })}
+      </pre>
+      {showPanel && (
+        <div className="absolute right-3 top-3 z-20 w-52 rounded-xl border border-slate-700/80 bg-slate-950/95 p-3 text-[11px] text-slate-200 shadow-xl backdrop-blur">
+          <p className="mb-2 font-semibold text-slate-100">代码块设置</p>
+          <label className="mb-2 flex items-center justify-between gap-3">
+            <span>语法高亮</span>
+            <input type="checkbox" checked={cardStyle.codeSyntaxHighlight} onChange={(e) => updateCardStyle({ codeSyntaxHighlight: e.target.checked })} />
+          </label>
+          <label className="mb-2 flex items-center justify-between gap-3">
+            <span>显示标题</span>
+            <input type="checkbox" checked={cardStyle.codeShowTitle} onChange={(e) => updateCardStyle({ codeShowTitle: e.target.checked })} />
+          </label>
+          <label className="mb-2 flex items-center justify-between gap-3">
+            <span>显示行号</span>
+            <input type="checkbox" checked={cardStyle.codeShowLineNumbers} onChange={(e) => updateCardStyle({ codeShowLineNumbers: e.target.checked })} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-300">代码标题</span>
+            <input
+              type="text"
+              value={cardStyle.codeBlockTitle}
+              onChange={(e) => updateCardStyle({ codeBlockTitle: e.target.value })}
+              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] outline-none focus:border-sky-500"
+            />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const getImageShadow = (image: ReturnType<typeof useStore.getState>['cardImages'][number][number]) => {
   if (!image?.shadowEnabled) return 'none';
   const { x, y, blur, spread, color, opacity } = image.shadow;
@@ -895,16 +1014,14 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
       }
       return <img src={cleanSrc} alt={alt} crossOrigin="anonymous" className="markdown-image" style={{ display: 'block', maxWidth: '100%', width: imgWidth || 'auto', borderRadius: '8px' }} {...props} />;
     },
-    code: ({ node: _node, children, ...props }: any) => {
+    code: ({ node: _node, className, children, ...props }: any) => {
       const text = String(children ?? '');
-      const normalizedInlineCode = (() => {
-        const match = text.match(/^`+([\s\S]*?)`+$/);
-        return (match ? match[1] : text)
-          .replace(/&#96;|&grave;/gi, '')
-          .replace(/[`｀ˋ´‘’]/g, '')
-          .trim();
-      })();
-      return !text.includes('\n') ? (
+      const isBlock = className?.includes('language-') || text.includes('\n');
+      const normalizedInlineCode = text
+        .replace(/&#96;|&grave;/gi, '')
+        .replace(/^[`｀ˋ´‘’]+|[`｀ˋ´‘’]+$/g, '')
+        .trim();
+      return !isBlock ? (
         <code
           style={{ backgroundColor: cardStyle.codeBackgroundColor, color: blockColor || '#0f172a' }}
           className="rounded-md border border-black/10 px-2 py-1 text-[0.88em] font-mono tracking-[0.01em] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] dark:border-white/10"
@@ -913,13 +1030,7 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
           {normalizedInlineCode}
         </code>
       ) : (
-        <code
-          style={{ backgroundColor: '#0b1220', color: '#dbeafe', fontSize: '0.82em' }}
-          className="block overflow-x-auto rounded-[20px] border border-slate-900/60 px-4 py-4 font-mono whitespace-pre-wrap break-words shadow-[0_24px_60px_-36px_rgba(15,23,42,0.72)]"
-          {...props}
-        >
-          {String(children ?? '').replace(/\n$/, '')}
-        </code>
+        <CodeBlockRenderer codeText={text} className={className} cardStyle={cardStyle} />
       );
     },
   };
