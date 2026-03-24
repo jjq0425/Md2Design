@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { useRef, useEffect, useState, memo, useMemo, type ReactNode, type CSSProperties, useLayoutEffect } from 'react';
+import { useRef, useEffect, useState, memo, useMemo, type ReactNode, type CSSProperties, useLayoutEffect, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type TextBlockLayout } from '../store';
 import { useDebounce } from '../hooks/useDebounce';
@@ -326,6 +326,8 @@ const TextBlockToolbar = ({
   onApplyWidth,
   onApplyPlacement,
   onApplyTypography,
+  disableSpatialLayout = false,
+  hideNumber = false,
 }: {
   anchor: DOMRect | null;
   layout: TextBlockLayout;
@@ -333,6 +335,8 @@ const TextBlockToolbar = ({
   onApplyWidth: (scope: LayoutScope, width: number) => void;
   onApplyPlacement: (scope: LayoutScope, placement: BlockPlacement) => void;
   onApplyTypography: (scope: LayoutScope, updates: Partial<TextBlockLayout>) => void;
+  disableSpatialLayout?: boolean;
+  hideNumber?: boolean;
 }) => {
   const [openPanel, setOpenPanel] = useState<'type' | 'layout' | 'number' | null>('type');
   const [typeScope, setTypeScope] = useState<LayoutScope>('block');
@@ -352,7 +356,7 @@ const TextBlockToolbar = ({
       <div className="flex flex-wrap items-center gap-2">
         <ToolbarSection icon={<Type size={13} />} label="文字" active={openPanel === 'type'} onClick={() => setOpenPanel(openPanel === 'type' ? null : 'type')} />
         <ToolbarSection icon={<SlidersHorizontal size={13} />} label="布局" active={openPanel === 'layout'} onClick={() => setOpenPanel(openPanel === 'layout' ? null : 'layout')} />
-        <ToolbarSection icon={<Hash size={13} />} label="序号" active={openPanel === 'number'} onClick={() => setOpenPanel(openPanel === 'number' ? null : 'number')} />
+        {!hideNumber && <ToolbarSection icon={<Hash size={13} />} label="序号" active={openPanel === 'number'} onClick={() => setOpenPanel(openPanel === 'number' ? null : 'number')} />}
       </div>
 
       {openPanel === 'type' && (
@@ -417,71 +421,75 @@ const TextBlockToolbar = ({
 
       {openPanel === 'layout' && (
         <div className="mt-2 grid min-w-[340px] grid-cols-2 gap-2 rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
-          <div className="col-span-2 rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-semibold opacity-60">统一布局范围</span>
-              <span className="opacity-45">支持统一设置后再手动微调</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'block', label: '当前块' },
-                { value: 'page', label: '当前页' },
-                { value: 'all', label: '全部' },
-              ].map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setLayoutScope(item.value as LayoutScope)}
-                  className={`rounded-xl px-3 py-2 text-[11px] font-semibold transition ${layoutScope === item.value ? 'bg-slate-900 text-white dark:bg-sky-500' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-200'}`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          {!disableSpatialLayout && (
+            <>
+              <div className="col-span-2 rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-semibold opacity-60">统一布局范围</span>
+                  <span className="opacity-45">支持统一设置后再手动微调</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'block', label: '当前块' },
+                    { value: 'page', label: '当前页' },
+                    { value: 'all', label: '全部' },
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setLayoutScope(item.value as LayoutScope)}
+                      className={`rounded-xl px-3 py-2 text-[11px] font-semibold transition ${layoutScope === item.value ? 'bg-slate-900 text-white dark:bg-sky-500' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-200'}`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <label className="col-span-2 rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="font-semibold opacity-60">块宽度</span>
-              <span className="opacity-45">{layoutScope === 'block' ? '仅当前块' : layoutScope === 'page' ? '整页统一' : '全部统一'}</span>
-            </div>
-            <input
-              type="number"
-              min={180}
-              max={960}
-              step={10}
-              value={layout.width ?? 320}
-              onChange={(e) => {
-                const nextWidth = Number(e.target.value);
-                if (Number.isNaN(nextWidth)) return;
-                onApplyWidth(layoutScope, nextWidth);
-              }}
-              className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm font-mono outline-none dark:border-white/10"
-            />
-            <div className="mt-1 text-right font-mono">{layout.width ?? 320}px</div>
-          </label>
-
-          <div className="col-span-2 rounded-xl bg-white/90 p-2 dark:bg-slate-950/80">
-            <div className="mb-2 text-[11px] font-semibold opacity-60">块在画布中的位置</div>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'left', icon: <AlignLeft size={14} />, label: '靠左' },
-                { value: 'center', icon: <AlignCenter size={14} />, label: '居中' },
-                { value: 'right', icon: <AlignRight size={14} />, label: '靠右' },
-              ].map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => {
-                    onApplyPlacement(layoutScope, item.value as BlockPlacement);
+              <label className="col-span-2 rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="font-semibold opacity-60">块宽度</span>
+                  <span className="opacity-45">{layoutScope === 'block' ? '仅当前块' : layoutScope === 'page' ? '整页统一' : '全部统一'}</span>
+                </div>
+                <input
+                  type="number"
+                  min={180}
+                  max={960}
+                  step={10}
+                  value={layout.width ?? 320}
+                  onChange={(e) => {
+                    const nextWidth = Number(e.target.value);
+                    if (Number.isNaN(nextWidth)) return;
+                    onApplyWidth(layoutScope, nextWidth);
                   }}
-                  className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-600 transition hover:bg-sky-50 hover:text-sky-700 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-sky-500/15 dark:hover:text-sky-200"
-                >
-                  <span className="mx-auto flex w-fit items-center gap-1">{item.icon}{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+                  className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm font-mono outline-none dark:border-white/10"
+                />
+                <div className="mt-1 text-right font-mono">{layout.width ?? 320}px</div>
+              </label>
+
+              <div className="col-span-2 rounded-xl bg-white/90 p-2 dark:bg-slate-950/80">
+                <div className="mb-2 text-[11px] font-semibold opacity-60">块在画布中的位置</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'left', icon: <AlignLeft size={14} />, label: '靠左' },
+                    { value: 'center', icon: <AlignCenter size={14} />, label: '居中' },
+                    { value: 'right', icon: <AlignRight size={14} />, label: '靠右' },
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => {
+                        onApplyPlacement(layoutScope, item.value as BlockPlacement);
+                      }}
+                      className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-600 transition hover:bg-sky-50 hover:text-sky-700 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-sky-500/15 dark:hover:text-sky-200"
+                    >
+                      <span className="mx-auto flex w-fit items-center gap-1">{item.icon}{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="col-span-2 flex gap-2 rounded-xl bg-white/90 p-2 dark:bg-slate-950/80">
             {[
@@ -502,7 +510,7 @@ const TextBlockToolbar = ({
         </div>
       )}
 
-      {openPanel === 'number' && (
+      {!hideNumber && openPanel === 'number' && (
         <div className="mt-2 min-w-[320px] rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
           <label className="flex items-center justify-between rounded-xl bg-white/90 px-3 py-3 text-[11px] dark:bg-slate-950/80">
             <div>
@@ -891,7 +899,7 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
       const text = String(children ?? '');
       const normalizedInlineCode = (() => {
         const match = text.match(/^`+([\s\S]*?)`+$/);
-        return match ? match[1].trim() : text.trim();
+        return (match ? match[1] : text).replace(/[`｀]/g, '').trim();
       })();
       return !text.includes('\n') ? (
         <code
@@ -929,39 +937,46 @@ const MarkdownBlock = ({ content, cardStyle, layout }: { content: string; cardSt
 };
 
 const FullMarkdownContent = ({
-  content,
+  blocks,
   cardStyle,
-  layout,
+  pageLayout,
+  textLayoutsForCard,
+  cardIndex,
+  selectedTextBlock,
+  setSelectedTextBlock,
+  blockRefs,
 }: {
-  content: string;
+  blocks: ReturnType<typeof parseMarkdownBlocks>;
   cardStyle: ReturnType<typeof useStore.getState>['cardStyle'];
-  layout?: TextBlockLayout;
+  pageLayout: TextBlockLayout;
+  textLayoutsForCard: Record<string, TextBlockLayout>;
+  cardIndex: number;
+  selectedTextBlock: { cardIndex: number; blockId: string } | null;
+  setSelectedTextBlock: (value: { cardIndex: number; blockId: string } | null) => void;
+  blockRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
 }) => {
-  const baseLayout = useMemo<TextBlockLayout>(() => ({
-    x: 0,
-    y: 0,
-    width: 0,
-    fontSize: layout?.fontSize ?? cardStyle.fontSize,
-    fontWeight: layout?.fontWeight ?? 500,
-    lineHeight: layout?.lineHeight ?? 1.55,
-    color: layout?.color ?? cardStyle.textColor,
-    textAlign: layout?.textAlign ?? 'left',
-    showNumber: false,
-    numberLabel: '',
-  }), [cardStyle.fontSize, cardStyle.textColor, layout]);
-
-  const enhancedContent = preprocessMarkdown(content);
-  const processedContent = enhancedContent.replace(/\n\s*\n/g, '\n\n&zwnj;\n\n');
-  const components = useMemo(() => buildMarkdownComponents(cardStyle, baseLayout), [cardStyle, baseLayout]);
-
   return (
-    <div
-      className="prose prose-sm max-w-none flex-1 pointer-events-auto overflow-hidden break-words [&>*:first-child]:mt-0 prose-hr:hidden prose-blockquote:before:content-none prose-blockquote:after:content-none prose-blockquote:border-none [&_*]:border-none !prose-quotes-none"
-      style={{ padding: 0, fontFamily: 'inherit', fontSize: `${layout?.fontSize ?? cardStyle.fontSize}px`, textAlign: layout?.textAlign }}
-    >
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]} components={components as any}>
-        {processedContent}
-      </ReactMarkdown>
+    <div className="flex flex-col gap-4 pointer-events-auto">
+      {blocks.map((block) => {
+        const layout = {
+          ...pageLayout,
+          ...(textLayoutsForCard[block.id] || {}),
+        };
+        const isSelected = selectedTextBlock?.cardIndex === cardIndex && selectedTextBlock.blockId === block.id;
+        return (
+          <div
+            key={block.id}
+            ref={(element) => { blockRefs.current[block.id] = element; }}
+            onMouseDown={(event) => {
+              if ((event.target as HTMLElement).closest('a, button, input, iframe')) return;
+              setSelectedTextBlock({ cardIndex, blockId: block.id });
+            }}
+            className={`rounded-[20px] px-2 py-1 transition ${isSelected ? 'bg-sky-50/80 ring-1 ring-sky-300 dark:bg-sky-500/10 dark:ring-sky-400/50' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+          >
+            <MarkdownBlock content={block.content} cardStyle={cardStyle} layout={layout} />
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -1245,7 +1260,12 @@ const Card = memo(({
     window.addEventListener('pointerup', handleUp);
   };
 
-  const selectedBlockLayout = isEditable && selectedTextBlock?.cardIndex === index ? textLayoutsForCard[selectedTextBlock.blockId] : null;
+  const selectedBlockLayout = selectedTextBlock?.cardIndex === index
+    ? ({
+      ...fullPageLayout,
+      ...(textLayoutsForCard[selectedTextBlock.blockId] || {}),
+    } as TextBlockLayout)
+    : null;
 
   return (
     <div style={{ width: width * scale, height: cardStyle.autoHeight ? 'auto' : height * scale, transition: draggingId || draggingTextBlockId ? 'none' : 'all 0.3s ease' }} className="relative flex-shrink-0">
@@ -1325,7 +1345,16 @@ const Card = memo(({
                   })}
                 </div>
               ) : (
-                <FullMarkdownContent content={content} cardStyle={cardStyle} layout={fullPageLayout} />
+                <FullMarkdownContent
+                  blocks={blocks}
+                  cardStyle={cardStyle}
+                  pageLayout={fullPageLayout}
+                  textLayoutsForCard={textLayoutsForCard}
+                  cardIndex={index}
+                  selectedTextBlock={selectedTextBlock}
+                  setSelectedTextBlock={setSelectedTextBlock}
+                  blockRefs={blockRefs}
+                />
               )}
             </div>
 
@@ -1431,7 +1460,7 @@ const Card = memo(({
             </div>
           </div>
 
-          {isEditable && selectedBlockLayout && (
+          {selectedBlockLayout && (
             <TextBlockToolbar
               anchor={toolbarRect}
               layout={selectedBlockLayout}
@@ -1439,6 +1468,8 @@ const Card = memo(({
               onApplyWidth={(scope, nextWidth) => onApplyTextBlockWidth(index, selectedTextBlock!.blockId, scope, nextWidth)}
               onApplyPlacement={(scope, placement) => onApplyTextBlockPlacement(index, selectedTextBlock!.blockId, scope, placement)}
               onApplyTypography={(scope, updates) => onApplyTextBlockTypography(index, selectedTextBlock!.blockId, scope, updates)}
+              disableSpatialLayout={!isEditable}
+              hideNumber={!isEditable}
             />
           )}
         </motion.div>
