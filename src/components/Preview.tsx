@@ -70,18 +70,12 @@ const highlightCodeLine = (line: string, language: string, enabled: boolean) => 
 };
 
 const CodeBlockRenderer = ({ codeText, className, cardStyle }: { codeText: string; className?: string; cardStyle: ReturnType<typeof useStore.getState>['cardStyle'] }) => {
-  const updateCardStyle = useStore((state) => state.updateCardStyle);
-  const [showPanel, setShowPanel] = useState(false);
   const language = getCodeLanguage(className);
   const lines = codeText.replace(/\n$/, '').split('\n');
   const headerTitle = cardStyle.codeBlockTitle?.trim() || `snippet.${language === 'text' ? 'txt' : language}`;
 
   return (
-    <div
-      className="group/code relative my-3 overflow-hidden rounded-2xl border border-slate-900/80 bg-[#0a0f1d] font-mono shadow-[0_20px_58px_-36px_rgba(15,23,42,0.78)]"
-      onMouseEnter={() => setShowPanel(true)}
-      onMouseLeave={() => setShowPanel(false)}
-    >
+    <div className="group/code relative my-3 overflow-hidden rounded-2xl border border-slate-900/80 bg-[#0a0f1d] font-mono shadow-[0_20px_58px_-36px_rgba(15,23,42,0.78)]">
       {(cardStyle.codeShowTitle || cardStyle.codeShowLineNumbers || cardStyle.codeSyntaxHighlight) && (
         <div className="flex items-center justify-between border-b border-slate-700/60 bg-[#111827] px-3 py-2 text-[11px] text-slate-300">
           <div className="flex items-center gap-2">
@@ -110,32 +104,6 @@ const CodeBlockRenderer = ({ codeText, className, cardStyle }: { codeText: strin
           );
         })}
       </pre>
-      {showPanel && (
-        <div className="absolute right-3 top-3 z-20 w-52 rounded-xl border border-slate-700/80 bg-slate-950/95 p-3 text-[11px] text-slate-200 shadow-xl backdrop-blur">
-          <p className="mb-2 font-semibold text-slate-100">代码块设置</p>
-          <label className="mb-2 flex items-center justify-between gap-3">
-            <span>语法高亮</span>
-            <input type="checkbox" checked={cardStyle.codeSyntaxHighlight} onChange={(e) => updateCardStyle({ codeSyntaxHighlight: e.target.checked })} />
-          </label>
-          <label className="mb-2 flex items-center justify-between gap-3">
-            <span>显示标题</span>
-            <input type="checkbox" checked={cardStyle.codeShowTitle} onChange={(e) => updateCardStyle({ codeShowTitle: e.target.checked })} />
-          </label>
-          <label className="mb-2 flex items-center justify-between gap-3">
-            <span>显示行号</span>
-            <input type="checkbox" checked={cardStyle.codeShowLineNumbers} onChange={(e) => updateCardStyle({ codeShowLineNumbers: e.target.checked })} />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-slate-300">代码标题</span>
-            <input
-              type="text"
-              value={cardStyle.codeBlockTitle}
-              onChange={(e) => updateCardStyle({ codeBlockTitle: e.target.value })}
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] outline-none focus:border-sky-500"
-            />
-          </label>
-        </div>
-      )}
     </div>
   );
 };
@@ -445,6 +413,9 @@ const TextBlockToolbar = ({
   onApplyWidth,
   onApplyPlacement,
   onApplyTypography,
+  showCodeOptions = false,
+  codeOptions,
+  onCodeOptionsChange,
   disableSpatialLayout = false,
   hideNumber = false,
 }: {
@@ -454,10 +425,18 @@ const TextBlockToolbar = ({
   onApplyWidth: (scope: LayoutScope, width: number) => void;
   onApplyPlacement: (scope: LayoutScope, placement: BlockPlacement) => void;
   onApplyTypography: (scope: LayoutScope, updates: Partial<TextBlockLayout>) => void;
+  showCodeOptions?: boolean;
+  codeOptions?: {
+    codeSyntaxHighlight: boolean;
+    codeShowTitle: boolean;
+    codeShowLineNumbers: boolean;
+    codeBlockTitle: string;
+  };
+  onCodeOptionsChange?: (updates: Partial<ReturnType<typeof useStore.getState>['cardStyle']>) => void;
   disableSpatialLayout?: boolean;
   hideNumber?: boolean;
 }) => {
-  const [openPanel, setOpenPanel] = useState<'type' | 'layout' | 'number' | null>('type');
+  const [openPanel, setOpenPanel] = useState<'type' | 'layout' | 'number' | 'code' | null>('type');
   const [typeScope, setTypeScope] = useState<LayoutScope>('block');
   const [layoutScope, setLayoutScope] = useState<LayoutScope>('block');
 
@@ -475,6 +454,7 @@ const TextBlockToolbar = ({
       <div className="flex flex-wrap items-center gap-2">
         <ToolbarSection icon={<Type size={13} />} label="文字" active={openPanel === 'type'} onClick={() => setOpenPanel(openPanel === 'type' ? null : 'type')} />
         <ToolbarSection icon={<SlidersHorizontal size={13} />} label="布局" active={openPanel === 'layout'} onClick={() => setOpenPanel(openPanel === 'layout' ? null : 'layout')} />
+        {showCodeOptions && <ToolbarSection icon={<FileText size={13} />} label="代码" active={openPanel === 'code'} onClick={() => setOpenPanel(openPanel === 'code' ? null : 'code')} />}
         {!hideNumber && <ToolbarSection icon={<Hash size={13} />} label="序号" active={openPanel === 'number'} onClick={() => setOpenPanel(openPanel === 'number' ? null : 'number')} />}
       </div>
 
@@ -654,6 +634,37 @@ const TextBlockToolbar = ({
               className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm outline-none dark:border-white/10"
             />
           </label>
+        </div>
+      )}
+
+      {showCodeOptions && codeOptions && onCodeOptionsChange && openPanel === 'code' && (
+        <div className="mt-2 min-w-[340px] rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
+          <div className="rounded-xl bg-white/90 px-3 py-3 text-[11px] dark:bg-slate-950/80">
+            <div className="mb-2 font-semibold opacity-75">代码块设置</div>
+            <div className="space-y-2">
+              <label className="flex items-center justify-between">
+                <span>语法高亮</span>
+                <input type="checkbox" checked={codeOptions.codeSyntaxHighlight} onChange={(e) => onCodeOptionsChange({ codeSyntaxHighlight: e.target.checked })} />
+              </label>
+              <label className="flex items-center justify-between">
+                <span>显示标题</span>
+                <input type="checkbox" checked={codeOptions.codeShowTitle} onChange={(e) => onCodeOptionsChange({ codeShowTitle: e.target.checked })} />
+              </label>
+              <label className="flex items-center justify-between">
+                <span>显示行号</span>
+                <input type="checkbox" checked={codeOptions.codeShowLineNumbers} onChange={(e) => onCodeOptionsChange({ codeShowLineNumbers: e.target.checked })} />
+              </label>
+              <label className="block pt-1">
+                <span className="mb-1 block opacity-70">代码标题</span>
+                <input
+                  type="text"
+                  value={codeOptions.codeBlockTitle}
+                  onChange={(e) => onCodeOptionsChange({ codeBlockTitle: e.target.value })}
+                  className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm outline-none dark:border-white/10"
+                />
+              </label>
+            </div>
+          </div>
         </div>
       )}
     </div>,
@@ -1128,6 +1139,7 @@ const Card = memo(({
 }) => {
   const cardStyle = resolvedStyle;
   const cardImages = useStore((state) => state.cardImages);
+  const updateCardStyle = useStore((state) => state.updateCardStyle);
   const updateCardImage = useStore((state) => state.updateCardImage);
   const removeCardImage = useStore((state) => state.removeCardImage);
   const cardTextLayouts = useStore((state) => state.cardTextLayouts);
@@ -1380,6 +1392,10 @@ const Card = memo(({
       ...(textLayoutsForCard[selectedTextBlock.blockId] || {}),
     } as TextBlockLayout)
     : null;
+  const selectedBlock = selectedTextBlock?.cardIndex === index
+    ? blocks.find((block) => block.id === selectedTextBlock.blockId) || null
+    : null;
+  const selectedBlockHasCode = Boolean(selectedBlock?.content.match(/```[\s\S]*?```|`[^`\n]+`/));
 
   return (
     <div style={{ width: width * scale, height: cardStyle.autoHeight ? 'auto' : height * scale, transition: draggingId || draggingTextBlockId ? 'none' : 'all 0.3s ease' }} className="relative flex-shrink-0">
@@ -1582,6 +1598,14 @@ const Card = memo(({
               onApplyWidth={(scope, nextWidth) => onApplyTextBlockWidth(index, selectedTextBlock!.blockId, scope, nextWidth)}
               onApplyPlacement={(scope, placement) => onApplyTextBlockPlacement(index, selectedTextBlock!.blockId, scope, placement)}
               onApplyTypography={(scope, updates) => onApplyTextBlockTypography(index, selectedTextBlock!.blockId, scope, updates)}
+              showCodeOptions={selectedBlockHasCode}
+              codeOptions={{
+                codeSyntaxHighlight: cardStyle.codeSyntaxHighlight,
+                codeShowTitle: cardStyle.codeShowTitle,
+                codeShowLineNumbers: cardStyle.codeShowLineNumbers,
+                codeBlockTitle: cardStyle.codeBlockTitle,
+              }}
+              onCodeOptionsChange={(updates) => updateCardStyle(updates)}
               disableSpatialLayout={!isEditable}
               hideNumber={!isEditable}
             />
