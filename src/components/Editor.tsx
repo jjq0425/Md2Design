@@ -670,11 +670,17 @@ export const Editor = () => {
                     <button onMouseDown={(e) => { e.preventDefault(); insertText('[color=rose]', '[/color]'); }} title="文字颜色" className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
                       <Palette size={16} />
                     </button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertText('[tag=violet]', '[/tag]'); }} title="Tag 标签" className="px-1.5 text-[11px] font-bold hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
+                      TAG
+                    </button>
                     <button onMouseDown={(e) => { e.preventDefault(); insertText('[bg=amber]', '[/bg]'); }} title="文字背景色" className="px-1.5 text-[11px] font-bold hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
                       BG
                     </button>
                     <button onMouseDown={(e) => { e.preventDefault(); insertText(`\n:::note 提示\n`, `\n:::\n`); }} title="Callout 块" className="px-1.5 text-[11px] font-bold hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
                       :::
+                    </button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertText(`\n:::tag 标签\n产品, 设计, AI\n:::\n`); }} title="Tag 块" className="px-1.5 text-[11px] font-bold hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors opacity-80 hover:opacity-100">
+                      #Tag
                     </button>
                   </div>
 
@@ -749,7 +755,9 @@ export const Editor = () => {
                     { label: 'Glass', value: `:::glass Spotlight\n适合做封面文案、强调区、视觉过渡。\n:::` },
                     { label: 'Quote', value: `:::quote 摘录\n一句值得单独展示的话。\n:::` },
                     { label: 'Check', value: `:::check Done\n- 完成第一项\n- 完成第二项\n:::` },
+                    { label: 'Tag 块', value: `:::tag 标签\n产品, 设计, AI\n:::` },
                     { label: '颜色', value: `[color=rose]重点[/color]` },
+                    { label: '标签', value: `[tag=violet]新功能[/tag]` },
                     { label: '背景', value: `[bg=amber]重点[/bg]` },
                   ].map((item) => (
                     <button
