@@ -126,6 +126,10 @@ export type CardStyle = {
   blockquoteBackgroundColor: string;
   blockquoteBorderColor: string;
   codeBackgroundColor: string;
+  codeSyntaxHighlight: boolean;
+  codeShowTitle: boolean;
+  codeShowLineNumbers: boolean;
+  codeBlockTitle: string;
   
   // Header Colors (Optional overrides, defaults to accent/text color logic)
   h1Color: string;
@@ -405,6 +409,10 @@ const INITIAL_CARD_STYLE: CardStyle = {
   blockquoteBackgroundColor: '#00000010',
   blockquoteBorderColor: '#3b82f6',
   codeBackgroundColor: '#00000010',
+  codeSyntaxHighlight: true,
+  codeShowTitle: true,
+  codeShowLineNumbers: true,
+  codeBlockTitle: 'snippet.ts',
   h1Color: '#000000',
   h1LineColor: '#3b82f6',
   h2Color: '#ffffff',
