@@ -103,6 +103,9 @@ const transformDirectiveCallouts = (markdown: string) => {
 const transformInlineSyntax = (segment: string) => {
   let result = segment;
 
+  result = result.replace(/``([^`\n]+)``/g, '<code>$1</code>');
+  result = result.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+
   result = result.replace(/\[color=([^\]]+)]([\s\S]+?)\[\/color]/gi, (_match, color, content) => {
     const resolved = escapeHtmlAttribute(resolveAdvancedColor(color));
     return `<span data-color="${resolved}">${content}</span>`;

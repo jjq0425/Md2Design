@@ -21,6 +21,93 @@ const PAGE_LAYOUT_KEY = '__page__';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+const getCodeLanguage = (className?: string) => {
+  const match = className?.match(/language-([\w-]+)/i);
+  return (match?.[1] || 'text').toLowerCase();
+};
+
+const highlightCodeLine = (line: string, language: string, enabled: boolean) => {
+  if (!enabled) return [{ text: line, className: '' }];
+  const rules: Array<{ pattern: RegExp; className: string }> = [
+    { pattern: /("(?:\\.|[^"])*"|'(?:\\.|[^'])*')/g, className: 'text-amber-300' },
+    { pattern: /\b(\d+(?:\.\d+)?)\b/g, className: 'text-cyan-300' },
+    { pattern: /\b(true|false|null|undefined)\b/g, className: 'text-violet-300' },
+    { pattern: /\b(import|from|export|default|return|if|else|for|while|switch|case|break|continue|const|let|var|function|class|new|await|async|try|catch|throw)\b/g, className: 'text-sky-300' },
+  ];
+  if (language === 'bash' || language === 'shell' || language === 'sh') {
+    rules.unshift({ pattern: /(^|\s)(\$[^\n]*)/g, className: 'text-emerald-300' });
+  }
+
+  const matches: Array<{ start: number; end: number; className: string }> = [];
+  rules.forEach(({ pattern, className }) => {
+    pattern.lastIndex = 0;
+    let match: RegExpExecArray | null = pattern.exec(line);
+    while (match) {
+      const matchText = match[0];
+      const captureText = match[1] ?? matchText;
+      const index = matchText.indexOf(captureText);
+      const start = match.index + Math.max(index, 0);
+      const end = start + captureText.length;
+      if (captureText.length > 0) matches.push({ start, end, className });
+      match = pattern.exec(line);
+    }
+  });
+  matches.sort((a, b) => a.start - b.start || b.end - a.end);
+  const merged: typeof matches = [];
+  matches.forEach((token) => {
+    const overlap = merged.some((existing) => token.start < existing.end && token.end > existing.start);
+    if (!overlap) merged.push(token);
+  });
+  const segments: Array<{ text: string; className: string }> = [];
+  let cursor = 0;
+  merged.forEach((token) => {
+    if (token.start > cursor) segments.push({ text: line.slice(cursor, token.start), className: '' });
+    segments.push({ text: line.slice(token.start, token.end), className: token.className });
+    cursor = token.end;
+  });
+  if (cursor < line.length) segments.push({ text: line.slice(cursor), className: '' });
+  return segments.length > 0 ? segments : [{ text: line, className: '' }];
+};
+
+const CodeBlockRenderer = ({ codeText, className, cardStyle }: { codeText: string; className?: string; cardStyle: ReturnType<typeof useStore.getState>['cardStyle'] }) => {
+  const language = getCodeLanguage(className);
+  const lines = codeText.replace(/\n$/, '').split('\n');
+  const headerTitle = cardStyle.codeBlockTitle?.trim() || `snippet.${language === 'text' ? 'txt' : language}`;
+
+  return (
+    <div className="group/code relative my-3 overflow-hidden rounded-2xl border border-slate-900/80 bg-[#0a0f1d] font-mono shadow-[0_20px_58px_-36px_rgba(15,23,42,0.78)]">
+      {(cardStyle.codeShowTitle || cardStyle.codeShowLineNumbers || cardStyle.codeSyntaxHighlight) && (
+        <div className="flex items-center justify-between border-b border-slate-700/60 bg-[#111827] px-3 py-2 text-[11px] text-slate-300">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-400/90" />
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-300/90" />
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
+            {cardStyle.codeShowTitle && <span className="ml-1 font-semibold tracking-wide text-slate-200">{headerTitle}</span>}
+          </div>
+          <span className="uppercase tracking-wider text-slate-400">{language}</span>
+        </div>
+      )}
+      <pre className="overflow-x-auto px-0 py-3 text-[12.5px] leading-6 text-slate-200">
+        {lines.map((line, index) => {
+          const segments = highlightCodeLine(line, language, cardStyle.codeSyntaxHighlight);
+          return (
+            <div key={`${index}-${line}`} className="grid min-h-6 grid-cols-[auto_1fr]">
+              {cardStyle.codeShowLineNumbers && (
+                <span className="select-none border-r border-slate-800/80 px-3 text-right text-slate-500">{index + 1}</span>
+              )}
+              <span className={`px-4 whitespace-pre ${cardStyle.codeShowLineNumbers ? '' : 'col-span-2'}`}>
+                {segments.map((seg, segIndex) => (
+                  <span key={`${segIndex}-${seg.text}`} className={seg.className}>{seg.text || ' '}</span>
+                ))}
+              </span>
+            </div>
+          );
+        })}
+      </pre>
+    </div>
+  );
+};
+
 const getImageShadow = (image: ReturnType<typeof useStore.getState>['cardImages'][number][number]) => {
   if (!image?.shadowEnabled) return 'none';
   const { x, y, blur, spread, color, opacity } = image.shadow;
@@ -326,6 +413,9 @@ const TextBlockToolbar = ({
   onApplyWidth,
   onApplyPlacement,
   onApplyTypography,
+  showCodeOptions = false,
+  codeOptions,
+  onCodeOptionsChange,
   disableSpatialLayout = false,
   hideNumber = false,
 }: {
@@ -335,10 +425,18 @@ const TextBlockToolbar = ({
   onApplyWidth: (scope: LayoutScope, width: number) => void;
   onApplyPlacement: (scope: LayoutScope, placement: BlockPlacement) => void;
   onApplyTypography: (scope: LayoutScope, updates: Partial<TextBlockLayout>) => void;
+  showCodeOptions?: boolean;
+  codeOptions?: {
+    codeSyntaxHighlight: boolean;
+    codeShowTitle: boolean;
+    codeShowLineNumbers: boolean;
+    codeBlockTitle: string;
+  };
+  onCodeOptionsChange?: (updates: Partial<ReturnType<typeof useStore.getState>['cardStyle']>) => void;
   disableSpatialLayout?: boolean;
   hideNumber?: boolean;
 }) => {
-  const [openPanel, setOpenPanel] = useState<'type' | 'layout' | 'number' | null>('type');
+  const [openPanel, setOpenPanel] = useState<'type' | 'layout' | 'number' | 'code' | null>('type');
   const [typeScope, setTypeScope] = useState<LayoutScope>('block');
   const [layoutScope, setLayoutScope] = useState<LayoutScope>('block');
 
@@ -356,6 +454,7 @@ const TextBlockToolbar = ({
       <div className="flex flex-wrap items-center gap-2">
         <ToolbarSection icon={<Type size={13} />} label="文字" active={openPanel === 'type'} onClick={() => setOpenPanel(openPanel === 'type' ? null : 'type')} />
         <ToolbarSection icon={<SlidersHorizontal size={13} />} label="布局" active={openPanel === 'layout'} onClick={() => setOpenPanel(openPanel === 'layout' ? null : 'layout')} />
+        {showCodeOptions && <ToolbarSection icon={<FileText size={13} />} label="代码" active={openPanel === 'code'} onClick={() => setOpenPanel(openPanel === 'code' ? null : 'code')} />}
         {!hideNumber && <ToolbarSection icon={<Hash size={13} />} label="序号" active={openPanel === 'number'} onClick={() => setOpenPanel(openPanel === 'number' ? null : 'number')} />}
       </div>
 
@@ -535,6 +634,37 @@ const TextBlockToolbar = ({
               className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm outline-none dark:border-white/10"
             />
           </label>
+        </div>
+      )}
+
+      {showCodeOptions && codeOptions && onCodeOptionsChange && openPanel === 'code' && (
+        <div className="mt-2 min-w-[340px] rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
+          <div className="rounded-xl bg-white/90 px-3 py-3 text-[11px] dark:bg-slate-950/80">
+            <div className="mb-2 font-semibold opacity-75">代码块设置</div>
+            <div className="space-y-2">
+              <label className="flex items-center justify-between">
+                <span>语法高亮</span>
+                <input type="checkbox" checked={codeOptions.codeSyntaxHighlight} onChange={(e) => onCodeOptionsChange({ codeSyntaxHighlight: e.target.checked })} />
+              </label>
+              <label className="flex items-center justify-between">
+                <span>显示标题</span>
+                <input type="checkbox" checked={codeOptions.codeShowTitle} onChange={(e) => onCodeOptionsChange({ codeShowTitle: e.target.checked })} />
+              </label>
+              <label className="flex items-center justify-between">
+                <span>显示行号</span>
+                <input type="checkbox" checked={codeOptions.codeShowLineNumbers} onChange={(e) => onCodeOptionsChange({ codeShowLineNumbers: e.target.checked })} />
+              </label>
+              <label className="block pt-1">
+                <span className="mb-1 block opacity-70">代码标题</span>
+                <input
+                  type="text"
+                  value={codeOptions.codeBlockTitle}
+                  onChange={(e) => onCodeOptionsChange({ codeBlockTitle: e.target.value })}
+                  className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-2 text-sm outline-none dark:border-white/10"
+                />
+              </label>
+            </div>
+          </div>
         </div>
       )}
     </div>,
@@ -895,16 +1025,14 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
       }
       return <img src={cleanSrc} alt={alt} crossOrigin="anonymous" className="markdown-image" style={{ display: 'block', maxWidth: '100%', width: imgWidth || 'auto', borderRadius: '8px' }} {...props} />;
     },
-    code: ({ node: _node, children, ...props }: any) => {
+    code: ({ node: _node, className, children, ...props }: any) => {
       const text = String(children ?? '');
-      const normalizedInlineCode = (() => {
-        const match = text.match(/^`+([\s\S]*?)`+$/);
-        return (match ? match[1] : text)
-          .replace(/&#96;|&grave;/gi, '')
-          .replace(/[`｀ˋ´‘’]/g, '')
-          .trim();
-      })();
-      return !text.includes('\n') ? (
+      const isBlock = className?.includes('language-') || text.includes('\n');
+      const normalizedInlineCode = text
+        .replace(/&#96;|&grave;/gi, '')
+        .replace(/^[`｀ˋ´‘’]+|[`｀ˋ´‘’]+$/g, '')
+        .trim();
+      return !isBlock ? (
         <code
           style={{ backgroundColor: cardStyle.codeBackgroundColor, color: blockColor || '#0f172a' }}
           className="rounded-md border border-black/10 px-2 py-1 text-[0.88em] font-mono tracking-[0.01em] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] dark:border-white/10"
@@ -913,13 +1041,7 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
           {normalizedInlineCode}
         </code>
       ) : (
-        <code
-          style={{ backgroundColor: '#0b1220', color: '#dbeafe', fontSize: '0.82em' }}
-          className="block overflow-x-auto rounded-[20px] border border-slate-900/60 px-4 py-4 font-mono whitespace-pre-wrap break-words shadow-[0_24px_60px_-36px_rgba(15,23,42,0.72)]"
-          {...props}
-        >
-          {String(children ?? '').replace(/\n$/, '')}
-        </code>
+        <CodeBlockRenderer codeText={text} className={className} cardStyle={cardStyle} />
       );
     },
   };
@@ -1017,6 +1139,7 @@ const Card = memo(({
 }) => {
   const cardStyle = resolvedStyle;
   const cardImages = useStore((state) => state.cardImages);
+  const updateCardStyle = useStore((state) => state.updateCardStyle);
   const updateCardImage = useStore((state) => state.updateCardImage);
   const removeCardImage = useStore((state) => state.removeCardImage);
   const cardTextLayouts = useStore((state) => state.cardTextLayouts);
@@ -1269,6 +1392,10 @@ const Card = memo(({
       ...(textLayoutsForCard[selectedTextBlock.blockId] || {}),
     } as TextBlockLayout)
     : null;
+  const selectedBlock = selectedTextBlock?.cardIndex === index
+    ? blocks.find((block) => block.id === selectedTextBlock.blockId) || null
+    : null;
+  const selectedBlockHasCode = Boolean(selectedBlock?.content.match(/```[\s\S]*?```|`[^`\n]+`/));
 
   return (
     <div style={{ width: width * scale, height: cardStyle.autoHeight ? 'auto' : height * scale, transition: draggingId || draggingTextBlockId ? 'none' : 'all 0.3s ease' }} className="relative flex-shrink-0">
@@ -1471,6 +1598,14 @@ const Card = memo(({
               onApplyWidth={(scope, nextWidth) => onApplyTextBlockWidth(index, selectedTextBlock!.blockId, scope, nextWidth)}
               onApplyPlacement={(scope, placement) => onApplyTextBlockPlacement(index, selectedTextBlock!.blockId, scope, placement)}
               onApplyTypography={(scope, updates) => onApplyTextBlockTypography(index, selectedTextBlock!.blockId, scope, updates)}
+              showCodeOptions={selectedBlockHasCode}
+              codeOptions={{
+                codeSyntaxHighlight: cardStyle.codeSyntaxHighlight,
+                codeShowTitle: cardStyle.codeShowTitle,
+                codeShowLineNumbers: cardStyle.codeShowLineNumbers,
+                codeBlockTitle: cardStyle.codeBlockTitle,
+              }}
+              onCodeOptionsChange={(updates) => updateCardStyle(updates)}
               disableSpatialLayout={!isEditable}
               hideNumber={!isEditable}
             />
