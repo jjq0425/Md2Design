@@ -22,6 +22,18 @@ export type CardImage = {
   resizeMode: 'cover' | 'contain' | 'fill' | 'none';
   spacerId?: string;
   isAttachedToSpacer?: boolean;
+  borderRadius: number;
+  borderWidth: number;
+  borderColor: string;
+  shadowEnabled: boolean;
+  shadow: {
+    x: number;
+    y: number;
+    blur: number;
+    spread: number;
+    color: string;
+    opacity: number;
+  };
   crop: {
     x: number;
     y: number;
@@ -219,7 +231,9 @@ interface AppState {
   setPreviewZoom: (zoom: number) => void;
 
   blockEditMode: boolean;
+  blockEditScope: 'page' | 'all';
   setBlockEditMode: (enabled: boolean) => void;
+  setBlockEditScope: (scope: 'page' | 'all') => void;
 
   presets: StylePreset[];
   savePreset: (name: string) => void;
@@ -231,6 +245,42 @@ interface AppState {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
 }
+
+const INITIAL_IMAGE_STYLE = {
+  borderRadius: 18,
+  borderWidth: 0,
+  borderColor: '#ffffff',
+  shadowEnabled: false,
+  shadow: {
+    x: 0,
+    y: 16,
+    blur: 36,
+    spread: -16,
+    color: '#0f172a',
+    opacity: 0.28,
+  },
+};
+
+const normalizeCardImage = (image: Partial<CardImage>): CardImage => ({
+  id: image.id || crypto.randomUUID(),
+  src: image.src || '',
+  x: image.x ?? 0,
+  y: image.y ?? 0,
+  width: image.width ?? 200,
+  height: image.height ?? 200,
+  naturalWidth: image.naturalWidth ?? image.width ?? 200,
+  naturalHeight: image.naturalHeight ?? image.height ?? 200,
+  rotation: image.rotation ?? 0,
+  resizeMode: image.resizeMode ?? 'cover',
+  spacerId: image.spacerId,
+  isAttachedToSpacer: image.isAttachedToSpacer ?? false,
+  borderRadius: image.borderRadius ?? INITIAL_IMAGE_STYLE.borderRadius,
+  borderWidth: image.borderWidth ?? INITIAL_IMAGE_STYLE.borderWidth,
+  borderColor: image.borderColor ?? INITIAL_IMAGE_STYLE.borderColor,
+  shadowEnabled: image.shadowEnabled ?? INITIAL_IMAGE_STYLE.shadowEnabled,
+  shadow: { ...INITIAL_IMAGE_STYLE.shadow, ...(image.shadow || {}) },
+  crop: { x: image.crop?.x ?? 0, y: image.crop?.y ?? 0, scale: image.crop?.scale ?? 1 },
+});
 
 export const PRESET_GRADIENTS = [
   { start: '#a8ff78', end: '#78ffd6', name: 'Minty Fresh' },
@@ -471,6 +521,8 @@ export const useStore = create<AppState>()(
       naturalHeight: 200,
       rotation: 0,
       resizeMode: 'cover',
+      ...INITIAL_IMAGE_STYLE,
+      shadow: { ...INITIAL_IMAGE_STYLE.shadow },
       crop: { x: 0, y: 0, scale: 1 },
     };
 
@@ -514,7 +566,7 @@ export const useStore = create<AppState>()(
       cardImages: {
         ...state.cardImages,
         [cardIndex]: images.map((img) =>
-          img.id === imageId ? { ...img, ...updates } : img
+          img.id === imageId ? normalizeCardImage({ ...img, ...updates }) : img
         ),
       },
     };
@@ -604,7 +656,9 @@ export const useStore = create<AppState>()(
   setPreviewZoom: (previewZoom) => set({ previewZoom }),
 
   blockEditMode: false,
+  blockEditScope: 'page',
   setBlockEditMode: (blockEditMode) => set({ blockEditMode }),
+  setBlockEditScope: (blockEditScope) => set({ blockEditScope }),
 
   presets: [],
   savePreset: (name) => set((state) => ({
@@ -642,7 +696,7 @@ export const useStore = create<AppState>()(
     {
       name: 'md2card-storage',
       storage: createJSONStorage(() => localStorage),
-      version: 8,
+      version: 9,
       migrate: (persistedState: any, version: number) => {
         if (!persistedState) return persistedState;
 
@@ -657,8 +711,14 @@ export const useStore = create<AppState>()(
           persistedState.cardStyle.layoutMode = layoutMode;
         }
 
-        if (version <= 7) {
+        if (version <= 8) {
           persistedState.blockEditMode = persistedState.blockEditMode ?? false;
+          persistedState.blockEditScope = persistedState.blockEditScope ?? 'page';
+          if (persistedState.cardImages) {
+            Object.keys(persistedState.cardImages).forEach((cardIndex) => {
+              persistedState.cardImages[cardIndex] = persistedState.cardImages[cardIndex].map((img: Partial<CardImage>) => normalizeCardImage(img));
+            });
+          }
         }
 
         if (version <= 6) {
@@ -748,6 +808,7 @@ export const useStore = create<AppState>()(
         cardImages: state.cardImages,
         cardTextLayouts: state.cardTextLayouts,
         blockEditMode: state.blockEditMode,
+        blockEditScope: state.blockEditScope,
         activeCardIndex: state.activeCardIndex,
         presets: state.presets,
         isEditorOpen: state.isEditorOpen,
@@ -769,7 +830,8 @@ export const useStore = create<AppState>()(
         markdown: state.markdown,
         cardImages: state.cardImages,
         cardTextLayouts: state.cardTextLayouts,
-        blockEditMode: state.blockEditMode 
+        blockEditMode: state.blockEditMode,
+        blockEditScope: state.blockEditScope 
       }),
       limit: 100, // Limit history size
     }
