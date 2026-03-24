@@ -17,6 +17,7 @@ import { extractPageStyleDirective, resolvePageCardStyle } from '../utils/pageSt
 import { parseMarkdownBlocks } from '../utils/markdownBlocks';
 
 const BLOCK_GAP = 18;
+const PAGE_LAYOUT_KEY = '__page__';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -227,6 +228,96 @@ const ImageStylePanel = ({
 
 type LayoutScope = 'block' | 'page' | 'all';
 type BlockPlacement = 'left' | 'center' | 'right';
+
+const PageTypographyPanel = ({
+  layout,
+  onApplyTypography,
+}: {
+  layout: TextBlockLayout;
+  onApplyTypography: (scope: 'page' | 'all', updates: Partial<TextBlockLayout>) => void;
+}) => {
+  const [scope, setScope] = useState<'page' | 'all'>('page');
+
+  return (
+    <div className="fixed right-6 top-36 z-[120] w-[320px] rounded-[24px] border border-white/60 bg-white/92 p-3 shadow-[0_26px_80px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/88">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <div className="text-xs font-semibold opacity-75">Markdown 文字样式</div>
+          <div className="mt-1 text-[11px] opacity-55">可调字号、颜色、粗细、行距与对齐；不支持拖拽位置。</div>
+        </div>
+      </div>
+
+      <div className="mb-3 grid grid-cols-2 gap-2 rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
+        {[
+          { value: 'page', label: '当前页' },
+          { value: 'all', label: '全部页' },
+        ].map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => setScope(item.value as 'page' | 'all')}
+            className={`rounded-xl px-3 py-2 text-[11px] font-semibold transition ${scope === item.value ? 'bg-slate-900 text-white dark:bg-sky-500' : 'bg-white text-slate-600 dark:bg-slate-950/80 dark:text-slate-200'}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <ToolbarNumberField
+          label="字号"
+          value={layout.fontSize ?? 18}
+          min={12}
+          max={72}
+          suffix="px"
+          onChange={(value) => onApplyTypography(scope, { fontSize: value })}
+        />
+        <ToolbarNumberField
+          label="粗细"
+          value={layout.fontWeight ?? 500}
+          min={300}
+          max={900}
+          step={100}
+          onChange={(value) => onApplyTypography(scope, { fontWeight: value })}
+        />
+        <label className="rounded-xl bg-white/90 px-3 py-2 text-[11px] dark:bg-slate-950/80">
+          <div className="mb-1 flex items-center gap-1 font-semibold opacity-60"><Palette size={12} /> 颜色</div>
+          <input
+            type="color"
+            value={layout.color ?? '#0f172a'}
+            onChange={(e) => onApplyTypography(scope, { color: e.target.value })}
+            className="h-10 w-full rounded-lg border border-black/10 bg-transparent dark:border-white/10"
+          />
+        </label>
+        <ToolbarNumberField
+          label="行距"
+          value={Number((layout.lineHeight ?? 1.55).toFixed(2))}
+          min={1}
+          max={2.2}
+          step={0.05}
+          onChange={(value) => onApplyTypography(scope, { lineHeight: Number(value.toFixed(2)) })}
+        />
+      </div>
+
+      <div className="mt-3 flex gap-2 rounded-2xl bg-slate-50/90 p-2 dark:bg-white/5">
+        {[
+          { value: 'left', icon: <AlignLeft size={14} />, label: '左对齐' },
+          { value: 'center', icon: <AlignCenter size={14} />, label: '居中' },
+          { value: 'right', icon: <AlignRight size={14} />, label: '右对齐' },
+        ].map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => onApplyTypography(scope, { textAlign: item.value as TextBlockLayout['textAlign'] })}
+            className={`flex-1 rounded-xl px-3 py-2 ${layout.textAlign === item.value ? 'bg-sky-500 text-white' : 'bg-white text-slate-600 dark:bg-slate-950/80 dark:text-slate-200'}`}
+          >
+            <span className="mx-auto flex w-fit items-center gap-1 text-[11px] font-semibold">{item.icon}{item.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const TextBlockToolbar = ({
   anchor,
@@ -798,13 +889,17 @@ const buildMarkdownComponents = (cardStyle: ReturnType<typeof useStore.getState>
     },
     code: ({ node: _node, children, ...props }: any) => {
       const text = String(children ?? '');
+      const normalizedInlineCode = (() => {
+        const match = text.match(/^`+([\s\S]*?)`+$/);
+        return match ? match[1].trim() : text.trim();
+      })();
       return !text.includes('\n') ? (
         <code
           style={{ backgroundColor: cardStyle.codeBackgroundColor, color: blockColor || '#0f172a' }}
           className="rounded-md border border-black/10 px-2 py-1 text-[0.88em] font-mono tracking-[0.01em] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] dark:border-white/10"
           {...props}
         >
-          {String(children ?? '').replace(/^`|`$/g, '')}
+          {normalizedInlineCode}
         </code>
       ) : (
         <code
@@ -836,22 +931,24 @@ const MarkdownBlock = ({ content, cardStyle, layout }: { content: string; cardSt
 const FullMarkdownContent = ({
   content,
   cardStyle,
+  layout,
 }: {
   content: string;
   cardStyle: ReturnType<typeof useStore.getState>['cardStyle'];
+  layout?: TextBlockLayout;
 }) => {
   const baseLayout = useMemo<TextBlockLayout>(() => ({
     x: 0,
     y: 0,
     width: 0,
-    fontSize: cardStyle.fontSize,
-    fontWeight: 500,
-    lineHeight: 1.55,
-    color: cardStyle.textColor,
-    textAlign: 'left',
+    fontSize: layout?.fontSize ?? cardStyle.fontSize,
+    fontWeight: layout?.fontWeight ?? 500,
+    lineHeight: layout?.lineHeight ?? 1.55,
+    color: layout?.color ?? cardStyle.textColor,
+    textAlign: layout?.textAlign ?? 'left',
     showNumber: false,
     numberLabel: '',
-  }), [cardStyle.fontSize, cardStyle.textColor]);
+  }), [cardStyle.fontSize, cardStyle.textColor, layout]);
 
   const enhancedContent = preprocessMarkdown(content);
   const processedContent = enhancedContent.replace(/\n\s*\n/g, '\n\n&zwnj;\n\n');
@@ -860,7 +957,7 @@ const FullMarkdownContent = ({
   return (
     <div
       className="prose prose-sm max-w-none flex-1 pointer-events-auto overflow-hidden break-words [&>*:first-child]:mt-0 prose-hr:hidden prose-blockquote:before:content-none prose-blockquote:after:content-none prose-blockquote:border-none [&_*]:border-none !prose-quotes-none"
-      style={{ padding: 0, fontFamily: 'inherit', fontSize: `${cardStyle.fontSize}px` }}
+      style={{ padding: 0, fontFamily: 'inherit', fontSize: `${layout?.fontSize ?? cardStyle.fontSize}px`, textAlign: layout?.textAlign }}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]} components={components as any}>
         {processedContent}
@@ -923,6 +1020,18 @@ const Card = memo(({
   const centerX = width / 2;
   const availableTextWidth = Math.max(220, width - (cardStyle.cardPadding.left + cardStyle.cardPadding.right));
   const fixedContentHeight = Math.max(120, height - (cardStyle.cardPadding.top + cardStyle.cardPadding.bottom));
+  const fullPageLayout = useMemo<TextBlockLayout>(() => ({
+    x: 0,
+    y: 0,
+    width: availableTextWidth,
+    fontSize: textLayoutsForCard[PAGE_LAYOUT_KEY]?.fontSize ?? cardStyle.fontSize,
+    fontWeight: textLayoutsForCard[PAGE_LAYOUT_KEY]?.fontWeight ?? 500,
+    lineHeight: textLayoutsForCard[PAGE_LAYOUT_KEY]?.lineHeight ?? 1.55,
+    color: textLayoutsForCard[PAGE_LAYOUT_KEY]?.color ?? cardStyle.textColor,
+    textAlign: textLayoutsForCard[PAGE_LAYOUT_KEY]?.textAlign ?? 'left',
+    showNumber: false,
+    numberLabel: '',
+  }), [availableTextWidth, cardStyle.fontSize, cardStyle.textColor, textLayoutsForCard]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1216,7 +1325,7 @@ const Card = memo(({
                   })}
                 </div>
               ) : (
-                <FullMarkdownContent content={content} cardStyle={cardStyle} />
+                <FullMarkdownContent content={content} cardStyle={cardStyle} layout={fullPageLayout} />
               )}
             </div>
 
@@ -1346,6 +1455,7 @@ export const Preview = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [selectedTextBlock, setSelectedTextBlock] = useState<{ cardIndex: number; blockId: string } | null>(null);
+  const [showPageTypographyPanel, setShowPageTypographyPanel] = useState(false);
   const { width, height } = getCardDimensions(cardStyle);
   const [autoScale, setAutoScale] = useState(1);
   const scale = previewZoom > 0 ? previewZoom : autoScale;
@@ -1441,6 +1551,8 @@ export const Preview = () => {
   useEffect(() => {
     if (!blockEditMode) {
       setSelectedTextBlock(null);
+    } else {
+      setShowPageTypographyPanel(false);
     }
   }, [blockEditMode]);
 
@@ -1517,6 +1629,45 @@ export const Preview = () => {
     }));
   };
 
+  const activePageTypographyLayout = (cardTextLayouts[activeCardIndex]?.[PAGE_LAYOUT_KEY] || {
+    x: 0,
+    y: 0,
+    width,
+    fontSize: cardStyle.fontSize,
+    fontWeight: 500,
+    lineHeight: 1.55,
+    color: cardStyle.textColor,
+    textAlign: 'left',
+    showNumber: false,
+    numberLabel: '',
+  }) as TextBlockLayout;
+
+  const handleApplyPageTypography = (scope: 'page' | 'all', updates: Partial<TextBlockLayout>) => {
+    const nextLayouts = structuredClone(cardTextLayouts || {});
+    pages.forEach((_, pageIndex) => {
+      if (scope === 'page' && pageIndex !== activeCardIndex) return;
+      nextLayouts[pageIndex] = {
+        ...(nextLayouts[pageIndex] || {}),
+        [PAGE_LAYOUT_KEY]: {
+          ...(nextLayouts[pageIndex]?.[PAGE_LAYOUT_KEY] || cardTextLayouts[pageIndex]?.[PAGE_LAYOUT_KEY] || {
+            x: 0,
+            y: 0,
+            width,
+            fontSize: cardStyle.fontSize,
+            fontWeight: 500,
+            lineHeight: 1.55,
+            color: cardStyle.textColor,
+            textAlign: 'left',
+            showNumber: false,
+            numberLabel: '',
+          }),
+          ...updates,
+        },
+      };
+    });
+    setCardTextLayouts(nextLayouts);
+  };
+
   const cycleBlockEditMode = () => {
     if (!blockEditMode) {
       setBlockEditScope('page');
@@ -1554,15 +1705,34 @@ export const Preview = () => {
       }}
     >
       <div className="sticky top-20 z-30 -mt-8 flex w-full justify-end px-4 pointer-events-none">
-        <button
-          type="button"
-          onClick={cycleBlockEditMode}
-          className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-xl transition ${blockEditMode ? 'border-sky-400/60 bg-sky-500 text-white shadow-sky-500/25' : 'border-white/40 bg-white/80 text-slate-700 shadow-slate-900/10 dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200'}`}
-        >
-          {!blockEditMode ? <PenSquare size={14} /> : blockEditScope === 'page' ? <FileText size={14} /> : <Globe2 size={14} />}
-          {blockEditLabel}
-        </button>
+        <div className="pointer-events-auto flex items-center gap-2">
+          {!blockEditMode && (
+            <button
+              type="button"
+              onClick={() => setShowPageTypographyPanel((value) => !value)}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-xl transition ${showPageTypographyPanel ? 'border-emerald-400/70 bg-emerald-500 text-white shadow-emerald-500/25' : 'border-white/40 bg-white/80 text-slate-700 shadow-slate-900/10 dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200'}`}
+            >
+              <Type size={14} />
+              页面文字
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={cycleBlockEditMode}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-xl transition ${blockEditMode ? 'border-sky-400/60 bg-sky-500 text-white shadow-sky-500/25' : 'border-white/40 bg-white/80 text-slate-700 shadow-slate-900/10 dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200'}`}
+          >
+            {!blockEditMode ? <PenSquare size={14} /> : blockEditScope === 'page' ? <FileText size={14} /> : <Globe2 size={14} />}
+            {blockEditLabel}
+          </button>
+        </div>
       </div>
+
+      {!blockEditMode && showPageTypographyPanel && (
+        <PageTypographyPanel
+          layout={activePageTypographyLayout}
+          onApplyTypography={handleApplyPageTypography}
+        />
+      )}
 
       {pages.map((page, index) => (
         <Card
